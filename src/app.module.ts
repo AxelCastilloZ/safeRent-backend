@@ -3,6 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
+import { IconDescriptionModule } from './icon-description/icon-description.module';
 
 @Module({
   imports: [
@@ -19,7 +20,9 @@ import { ConfigModule } from '@nestjs/config';
       database: process.env.DB_DATABASE,
       autoLoadEntities: true,
       synchronize: true,
-    })
+    }),
+
+    IconDescriptionModule
   ],
   controllers: [AppController],
   providers: [AppService],

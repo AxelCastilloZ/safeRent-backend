@@ -37,8 +37,21 @@ export class Property {
     address!: string;
 
     @Column({
+        type: 'varchar',
+        length: 20,
+    })
+    guest!: number;
+
+    @Column({
+        type: 'varchar',
+        length: 100,
+    })
+    rooms!: number;
+
+    @Column({
         type: 'text',
         array: true,
+        nullable: true,
         default: [],
     })
     images!: string[];
