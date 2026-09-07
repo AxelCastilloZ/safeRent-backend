@@ -3,7 +3,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
-import { IconDescriptionModule } from './icon-description/icon-description.module';
+import { UserModule } from './user/user.module';
+import { PropertyModule } from './property/property.module';
 
 @Module({
   imports: [
@@ -22,7 +23,8 @@ import { IconDescriptionModule } from './icon-description/icon-description.modul
       synchronize: true,
     }),
 
-    IconDescriptionModule
+    UserModule,
+    PropertyModule,
   ],
   controllers: [AppController],
   providers: [AppService],
