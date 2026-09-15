@@ -17,9 +17,10 @@ export class PropertyController {
         return this.propertyService.findAll();
     }
 
-    @Get(':id')
-    findOne(@Param('id') id: number) {
-        return this.propertyService.findOne(id);
+    // IMPORTANTE: rutas específicas antes de :id
+    @Get('active')
+    findActive() {
+        return this.propertyService.findActive();
     }
 
     @Get('owner/:ownerId')
@@ -27,8 +28,17 @@ export class PropertyController {
         return this.propertyService.findByOwner(ownerId);
     }
 
+    // :id después de las rutas específicas
+    @Get(':id')
+    findOne(@Param('id') id: number) {
+        return this.propertyService.findOne(id);
+    }
+
     @Patch(':id')
-    update(@Param('id') id: number, @Body() updatePropertyDto: UpdatePropertyDto) {
+    update(
+        @Param('id') id: number,
+        @Body() updatePropertyDto: UpdatePropertyDto,
+    ) {
         return this.propertyService.update(id, updatePropertyDto);
     }
 
@@ -42,3 +52,4 @@ export class PropertyController {
         return this.propertyService.remove(id);
     }
 }
+
