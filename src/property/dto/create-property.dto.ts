@@ -8,7 +8,6 @@ import {
     IsInt,
     Min,
     IsArray,
-    ArrayMinSize,
 } from "class-validator";
 
 export class CreatePropertyDto {

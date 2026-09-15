@@ -151,4 +151,12 @@ export class PropertyService {
         property.isActive = false;
         return await this.propertyRepo.save(property);
     }
+
+    async findActive() {
+    return await this.propertyRepo.find({
+        where: {
+            isActive: true,
+        },
+    });
+}
 }
