@@ -9,7 +9,7 @@ import {
 } from "typeorm";
 import { User } from "../../user/entities/user.entity";
 import { TypeOfProperty } from "./type-of-property.entity";
-import { Service } from "./service.entity";
+import { Service } from "../../service/entities/service.entity";
 import { PropertyFile } from "./property-file.entity";
 import { IconDescription } from "./icon-description.entity";
 

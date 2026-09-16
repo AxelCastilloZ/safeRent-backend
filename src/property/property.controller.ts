@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { PropertyService } from './property.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
+import { FindPropertiesDto } from './dto/find-properties.dto';
 
 @Controller('properties')
 export class PropertyController {
@@ -13,14 +14,14 @@ export class PropertyController {
     }
 
     @Get()
-    findAll() {
-        return this.propertyService.findAll();
+    findAll(@Query() query: FindPropertiesDto) {
+        return this.propertyService.findAll(query);
     }
 
     // IMPORTANTE: rutas específicas antes de :id
     @Get('active')
-    findActive() {
-        return this.propertyService.findActive();
+    findActive(@Query() query: FindPropertiesDto) {
+        return this.propertyService.findActive(query);
     }
 
     @Get('owner/:ownerId')
