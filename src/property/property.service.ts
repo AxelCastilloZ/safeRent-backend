@@ -1,14 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Property } from './entities/property.entity';
 import { TypeOfProperty } from './entities/type-of-property.entity';
-import { Service } from './entities/service.entity';
+import { ServiceService } from '../service/service.service';
 import { PropertyFile } from './entities/property-file.entity';
 import { IconDescription } from './entities/icon-description.entity';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { User } from '../user/entities/user.entity';
+import { FindPropertiesDto } from './dto/find-properties.dto';
 
 @Injectable()
 export class PropertyService {
@@ -19,8 +20,7 @@ export class PropertyService {
         @InjectRepository(TypeOfProperty)
         private readonly typeOfPropertyRepo: Repository<TypeOfProperty>,
 
-        @InjectRepository(Service)
-        private readonly serviceRepo: Repository<Service>,
+        private readonly serviceService: ServiceService,
 
         @InjectRepository(PropertyFile)
         private readonly propertyFileRepo: Repository<PropertyFile>,
@@ -49,13 +49,7 @@ export class PropertyService {
             typeOfProperty = found;
         }
 
-        let services: Service[] = [];
-        if (serviceIds && serviceIds.length > 0) {
-            services = await this.serviceRepo.findBy({ id: In(serviceIds) });
-            if (services.length !== serviceIds.length) {
-                throw new NotFoundException('One or more services were not found');
-            }
-        }
+        const services = await this.serviceService.findByIds(serviceIds ?? []);
 
         const newProperty = this.propertyRepo.create({
             ...rest,
@@ -68,17 +62,23 @@ export class PropertyService {
         return await this.propertyRepo.save(newProperty);
     }
 
-    async findAll() {
-        const properties = await this.propertyRepo.find({
-            where: { isActive: true },
-            relations: { files: true, iconDescriptions: true },
+    async findAll({ serviceIds = [] }: FindPropertiesDto = {}) {
+        const query = this.propertyRepo.createQueryBuilder('property')
+            .leftJoinAndSelect('property.owner', 'owner')
+            .leftJoinAndSelect('property.typeOfProperty', 'typeOfProperty')
+            .leftJoinAndSelect('property.services', 'services')
+            .leftJoinAndSelect('property.files', 'files')
+            .leftJoinAndSelect('property.iconDescriptions', 'iconDescriptions')
+            .where('property.isActive = :isActive', { isActive: true });
+
+        // Independent joins implement ALL selected services, while the services
+        // relation above still returns every amenity of each matching property.
+        [...new Set(serviceIds)].forEach((id, index) => {
+            const alias = `selectedService${index}`;
+            query.innerJoin('property.services', alias, `${alias}.id = :serviceId${index}`, { [`serviceId${index}`]: id });
         });
 
-        if (properties.length === 0) {
-            throw new NotFoundException('No properties found');
-        }
-
-        return properties;
+        return query.orderBy('property.id', 'DESC').getMany();
     }
 
     async findOne(id: number) {
@@ -128,11 +128,7 @@ export class PropertyService {
         }
 
         if (serviceIds) {
-            const services = await this.serviceRepo.findBy({ id: In(serviceIds) });
-            if (services.length !== serviceIds.length) {
-                throw new NotFoundException('One or more services were not found');
-            }
-            property.services = services;
+            property.services = await this.serviceService.findByIds(serviceIds);
         }
 
         Object.assign(property, rest);
@@ -152,11 +148,7 @@ export class PropertyService {
         return await this.propertyRepo.save(property);
     }
 
-    async findActive() {
-    return await this.propertyRepo.find({
-        where: {
-            isActive: true,
-        },
-    });
-}
+    async findActive(query: FindPropertiesDto = {}) {
+        return this.findAll(query);
+    }
 }

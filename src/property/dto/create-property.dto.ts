@@ -7,7 +7,9 @@ import {
     IsOptional,
     IsInt,
     Min,
+    Max,
     IsArray,
+    ArrayUnique,
 } from "class-validator";
 
 export class CreatePropertyDto {
@@ -63,6 +65,18 @@ export class CreatePropertyDto {
     address!: string;
 
     @IsOptional()
+    @IsNumber()
+    @Min(-90)
+    @Max(90)
+    latitude?: number;
+
+    @IsOptional()
+    @IsNumber()
+    @Min(-180)
+    @Max(180)
+    longitude?: number;
+
+    @IsOptional()
     @IsInt({
         message: 'The guest capacity must be an integer.',
     })
@@ -103,5 +117,7 @@ export class CreatePropertyDto {
         message: 'The service IDs must be an array.',
     })
     @IsInt({ each: true, message: 'Each service ID must be an integer.' })
+    @Min(1, { each: true, message: 'Each service ID must be positive.' })
+    @ArrayUnique({ message: 'Service IDs must not be repeated.' })
     serviceIds?: number[];
 }

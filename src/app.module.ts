@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { UserModule } from './user/user.module';
 import { PropertyModule } from './property/property.module';
+import { ServiceModule } from './service/service.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { PropertyModule } from './property/property.module';
 
     UserModule,
     PropertyModule,
+    ServiceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
