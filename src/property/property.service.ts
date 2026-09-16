@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as fs from 'fs';
 import { Property } from './entities/property.entity';
 import { TypeOfProperty } from './entities/type-of-property.entity';
 import { ServiceService } from '../service/service.service';
@@ -150,5 +151,50 @@ export class PropertyService {
 
     async findActive(query: FindPropertiesDto = {}) {
         return this.findAll(query);
+    }
+
+    // --- File methods ---
+
+    async saveFiles(propertyId: number, files: Express.Multer.File[]) {
+        const property = await this.findOne(propertyId);
+
+        const propertyFiles = files.map((file) =>
+            this.propertyFileRepo.create({
+                path: file.path,
+                fileName: file.originalname,
+                mimeType: file.mimetype,
+                size: file.size,
+                uploadedBy: property.owner?.name ?? 'unknown',
+                property,
+            }),
+        );
+
+        return await this.propertyFileRepo.save(propertyFiles);
+    }
+
+    async getFiles(propertyId: number) {
+        await this.findOne(propertyId);
+
+        return await this.propertyFileRepo.find({
+            where: { property: { id: propertyId } },
+        });
+    }
+
+    async removeFile(propertyId: number, fileId: number) {
+        await this.findOne(propertyId);
+
+        const file = await this.propertyFileRepo.findOne({
+            where: { id: fileId, property: { id: propertyId } },
+        });
+
+        if (!file) {
+            throw new NotFoundException(`File with Id ${fileId} not found for property ${propertyId}`);
+        }
+
+        if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+        }
+
+        return await this.propertyFileRepo.remove(file);
     }
 }
