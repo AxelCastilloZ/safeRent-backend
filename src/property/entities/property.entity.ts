@@ -49,6 +49,12 @@ export class Property {
     })
     address!: string;
 
+    @Column({ type: 'double precision', nullable: true })
+    latitude?: number;
+
+    @Column({ type: 'double precision', nullable: true })
+    longitude?: number;
+
     @Column({
         type: 'int',
         default: 1,
