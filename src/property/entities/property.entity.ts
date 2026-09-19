@@ -12,6 +12,7 @@ import { TypeOfProperty } from "./type-of-property.entity";
 import { Service } from "../../service/entities/service.entity";
 import { PropertyFile } from "./property-file.entity";
 import { IconDescription } from "./icon-description.entity";
+import { Conversation } from "../../messages/conversation/entities/conversation.entity";
 
 @Entity()
 export class Property {
@@ -90,4 +91,7 @@ export class Property {
 
     @OneToMany(() => IconDescription, (icon) => icon.property, { cascade: true })
     iconDescriptions!: IconDescription[];
+
+    @OneToMany(() => Conversation, (conversation) => conversation.property)
+    conversations!: Conversation[];
 }
