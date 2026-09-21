@@ -1,6 +1,10 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { AppModule } from './app.module';
+import * as dns from 'dns';
+
+// Force IPv4 first — Supabase resolves to IPv6 by default
+dns.setDefaultResultOrder('ipv4first');
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -9,6 +13,13 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
+    }),
+  );
+  app.enableCors(),
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
       transform: true,
     }),
   );
