@@ -1,8 +1,19 @@
 import { Type } from "class-transformer";
-import { IsNotEmpty, IsString, MaxLength, IsOptional, IsEmail, Matches, IsDate, Length, IsBoolean } from "class-validator";
+import { IsNotEmpty, IsString, MaxLength, IsOptional, IsEmail, Matches, IsDate, Length, IsBoolean, IsNumber } from "class-validator";
 
 
 export class CreateUserDto {
+  @IsNotEmpty({
+    message: 'The ID card is required.',
+  })
+  @IsString({
+    message: 'The ID card must be a string.',
+  })
+  @MaxLength(20, {
+    message: 'The ID card cannot exceed 20 characters.',
+  })
+  idCard!: string;
+
   @IsNotEmpty({
     message: 'The name is required.',
   })
@@ -94,4 +105,12 @@ export class CreateUserDto {
     message: 'The password must contain at least one special character.',
   })
   password!: string;
+
+  @IsNotEmpty({
+    message: 'The RoleId is required.',
+  })
+  @IsNumber({}, {
+    message: 'The RoleId must be a number.',
+  })
+  roleId!: number;
 }
