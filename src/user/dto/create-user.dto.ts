@@ -3,7 +3,7 @@ import { IsNotEmpty, IsString, MaxLength, IsOptional, IsEmail, Matches, IsDate, 
 
 
 export class CreateUserDto {
-    @IsNotEmpty({
+  @IsNotEmpty({
     message: 'The identification card is required.',
   })
   @IsString({
@@ -11,17 +11,6 @@ export class CreateUserDto {
   })
   @MaxLength(30, {
     message: 'The identification card cannot exceed 30 characters.',
-  })
-  idCard!: string;
-
-  @IsNotEmpty({
-    message: 'The ID card is required.',
-  })
-  @IsString({
-    message: 'The ID card must be a string.',
-  })
-  @MaxLength(20, {
-    message: 'The ID card cannot exceed 20 characters.',
   })
   idCard!: string;
 

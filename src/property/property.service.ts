@@ -1,7 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as fs from 'fs';
 import { Property } from './entities/property.entity';
 import { TypeOfProperty } from './entities/type-of-property.entity';
 import { ServiceService } from '../service/service.service';
@@ -11,6 +8,9 @@ import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { User } from '../user/entities/user.entity';
 import { FindPropertiesDto } from './dto/find-properties.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import * as fs from 'fs';
 
 @Injectable()
 export class PropertyService {
