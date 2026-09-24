@@ -1,5 +1,7 @@
 import { Role } from "src/role/entities/role.entity";
-import { Column, Entity, JoinTable, ManyToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Conversation } from "../../messages/conversation/entities/conversation.entity";
+import { Message } from "../../messages/message/entities/message.entity";
 
 @Entity()
 export class User {
@@ -67,4 +69,11 @@ export class User {
     @ManyToMany(()=>Role)
     @JoinTable({ name: 'user_role' })
     Roles!: Role[];
+    // --- Relations ---
+
+    @ManyToMany(() => Conversation, (conversation) => conversation.participants)
+    conversations!: Conversation[];
+
+    @OneToMany(() => Message, (message) => message.sender)
+    sentMessages!: Message[];
 }
