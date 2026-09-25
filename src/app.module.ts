@@ -8,6 +8,7 @@ import { RoleModule } from './role/role.module';
 import { PropertyModule } from './property/property.module';
 import { ServiceModule } from './service/service.module';
 import { MessagesModule } from './messages/messages.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { MessagesModule } from './messages/messages.module';
     PropertyModule,
     ServiceModule,
     MessagesModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

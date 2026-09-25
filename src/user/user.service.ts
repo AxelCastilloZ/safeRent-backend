@@ -69,4 +69,18 @@ export class UserService {
     return true;
   }
 
+  findForLogin(email: string) {
+    return this.userRepo
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.email = :email', { email })
+      .getOne();
+  }
+
+  findForAuth(id: number) {
+    return this.userRepo.findOne({
+      where: { id, isActive: true },
+      relations: { Roles: true },
+    });
+  }
 }
