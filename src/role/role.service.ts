@@ -35,6 +35,10 @@ export class RoleService {
     return role;
   }
 
+  findActiveByName(name: string) {
+    return this.roleRepo.findOneBy({ name, isActive: true });
+  }
+
   async update(id: number, updateRoleDto: UpdateRoleDto) {
     await this.roleRepo.update(id, updateRoleDto);
     return await this.findOne(id);
