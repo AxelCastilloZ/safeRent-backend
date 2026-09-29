@@ -65,7 +65,6 @@ export class PropertyService {
 
     async findAll({ serviceIds = [] }: FindPropertiesDto = {}) {
         const query = this.propertyRepo.createQueryBuilder('property')
-            .leftJoinAndSelect('property.owner', 'owner')
             .leftJoinAndSelect('property.typeOfProperty', 'typeOfProperty')
             .leftJoinAndSelect('property.services', 'services')
             .leftJoinAndSelect('property.files', 'files')
