@@ -4,22 +4,26 @@ import {
   ArrayUnique,
   IsArray,
   IsInt,
+  IsOptional,
   Max,
   Min,
-  ValidateIf,
 } from 'class-validator';
 
 export class FindPropertiesDto {
-  @ValidateIf((_object, value: unknown) => value != null)
+  @IsOptional()
   @Transform(({ value }: { value: unknown }) => {
-    if (value == null) return undefined;
-    const values = Array.isArray(value) ? (value as unknown[]) : [value];
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
+
+    const values = Array.isArray(value) ? value : [value];
+
     return values
-      .flatMap((item) => (typeof item === 'string' ? item.split(',') : [item]))
-      .map((item: unknown) =>
-        typeof item === 'string' && /^[1-9]\d*$/.test(item.trim())
-          ? Number(item.trim())
-          : item,
+      .flatMap((item) =>
+        typeof item === 'string' ? item.split(',') : [item],
+      )
+      .map((item) =>
+        typeof item === 'string' ? Number(item.trim()) : item,
       );
   })
   @IsArray()
