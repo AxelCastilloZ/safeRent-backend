@@ -1,3 +1,5 @@
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { resolve } from 'path';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
@@ -7,7 +9,9 @@ import * as dns from 'dns';
 dns.setDefaultResultOrder('ipv4first');
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  app.useStaticAssets(resolve('uploads'), { prefix: '/uploads/' });
 
   app.useGlobalPipes(
     new ValidationPipe({

@@ -81,6 +81,24 @@ export class PropertyService {
         return query.orderBy('property.id', 'DESC').getMany();
     }
 
+    async findPublic(id: number) {
+        const property = await this.propertyRepo.findOne({
+            where: { id, isActive: true },
+            relations: { files: true, iconDescriptions: true },
+        });
+        if (!property) throw new NotFoundException('Propiedad no disponible');
+        return {
+            id: property.id, title: property.title, description: property.description,
+            address: property.address, cost: property.cost, typeOfCoin: property.typeOfCoin,
+            rooms: property.rooms, guest: property.guest,
+            latitude: property.latitude, longitude: property.longitude,
+            typeOfProperty: property.typeOfProperty,
+            services: property.services, iconDescriptions: property.iconDescriptions,
+            files: property.files.map(({ path, mimeType }) => ({ path, mimeType })),
+            owner: { id: property.owner.id, name: property.owner.name },
+        };
+    }
+
     async findOne(id: number) {
         const property = await this.propertyRepo.findOne({
             where: { id },

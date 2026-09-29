@@ -26,6 +26,7 @@ describe('Public landing queries with global authentication guards', () => {
         { provide: PropertyService, useValue: {
           findAll: jest.fn().mockResolvedValue([{ id: 1, title: 'Publicada' }]),
           findActive: jest.fn().mockResolvedValue([]),
+          findPublic: jest.fn().mockResolvedValue({ id: 1, title: 'Casa' }),
         } },
         { provide: ServiceService, useValue: {
           findAll: jest.fn().mockResolvedValue([{ id: 1, name: 'Internet' }]),
@@ -52,6 +53,11 @@ describe('Public landing queries with global authentication guards', () => {
     },
   );
 
+  it('allows anonymous public detail access and rejects invalid IDs', async () => {
+    await request(app.getHttpServer() as Server).get('/properties/active/1').expect(200).expect({ id: 1, title: 'Casa' });
+    await request(app.getHttpServer() as Server).get('/properties/active/invalid').expect(400);
+  });
+
   it('keeps service creation authenticated', async () => {
     await request(app.getHttpServer() as Server).post('/service').send({ name: 'Test' }).expect(401);
   });
@@ -60,7 +66,7 @@ describe('Public landing queries with global authentication guards', () => {
     await request(app.getHttpServer() as Server).post('/properties').send({}).expect(401);
   });
 
-  it.each(['/properties/owner/1', '/properties/1'])(
+  it.each(['/properties/owner/1'])(
     'keeps private property queries authenticated: %s',
     async (path) => { await request(app.getHttpServer() as Server).get(path).expect(401); },
   );

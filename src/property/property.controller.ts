@@ -11,6 +11,7 @@ import {
     UseInterceptors,
     UploadedFiles,
     BadRequestException,
+    ParseIntPipe,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -40,6 +41,12 @@ export class PropertyController {
     @Get('active')
     findActive(@Query() query: FindPropertiesDto) {
         return this.propertyService.findActive(query);
+    }
+
+    @Public()
+    @Get('active/:id')
+    findPublic(@Param('id', ParseIntPipe) id: number) {
+        return this.propertyService.findPublic(id);
     }
 
     @Get('owner/:ownerId')
