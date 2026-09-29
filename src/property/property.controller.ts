@@ -1,3 +1,4 @@
+import { Public } from '../auth/access';
 import {
     Controller,
     Get,
@@ -10,6 +11,7 @@ import {
     UseInterceptors,
     UploadedFiles,
     BadRequestException,
+    ParseIntPipe,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -28,15 +30,23 @@ export class PropertyController {
         return this.propertyService.create(createPropertyDto);
     }
 
+    @Public()
     @Get()
     findAll(@Query() query: FindPropertiesDto) {
         return this.propertyService.findAll(query);
     }
 
     // IMPORTANTE: rutas específicas antes de :id
+    @Public()
     @Get('active')
     findActive(@Query() query: FindPropertiesDto) {
         return this.propertyService.findActive(query);
+    }
+
+    @Public()
+    @Get('active/:id')
+    findPublic(@Param('id', ParseIntPipe) id: number) {
+        return this.propertyService.findPublic(id);
     }
 
     @Get('owner/:ownerId')
@@ -45,6 +55,7 @@ export class PropertyController {
     }
 
     // :id después de las rutas específicas
+    @Public()
     @Get(':id')
     findOne(@Param('id') id: number) {
         return this.propertyService.findOne(id);
@@ -116,4 +127,3 @@ export class PropertyController {
         return this.propertyService.removeFile(id, fileId);
     }
 }
-

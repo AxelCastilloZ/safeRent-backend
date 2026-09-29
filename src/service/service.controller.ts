@@ -1,3 +1,4 @@
+import { Public } from '../auth/access';
 import {
   Controller,
   Get,
@@ -23,6 +24,7 @@ export class ServiceController {
     return this.serviceService.create(createServiceDto);
   }
 
+  @Public()
   @Get()
   findAll() {
     return this.serviceService.findAll();
