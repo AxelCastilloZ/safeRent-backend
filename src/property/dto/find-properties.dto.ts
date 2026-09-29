@@ -10,8 +10,9 @@ import {
 } from 'class-validator';
 
 export class FindPropertiesDto {
-  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @ValidateIf((_object, value: unknown) => value != null)
   @Transform(({ value }: { value: unknown }) => {
+    if (value == null) return undefined;
     const values = Array.isArray(value) ? (value as unknown[]) : [value];
     return values
       .flatMap((item) => (typeof item === 'string' ? item.split(',') : [item]))
