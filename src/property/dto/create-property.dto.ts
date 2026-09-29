@@ -96,14 +96,12 @@ export class CreatePropertyDto {
     @Type(() => Number)
     rooms?: number;
 
-    @IsNotEmpty({
-        message: 'The owner ID is required.',
-    })
+    @IsOptional()
     @IsInt({
         message: 'The owner ID must be an integer.',
     })
     @Type(() => Number)
-    ownerId!: number;
+    ownerId?: number;
 
     @IsOptional()
     @IsInt({

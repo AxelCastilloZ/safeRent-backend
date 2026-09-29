@@ -1,3 +1,4 @@
+import type { AuthRequest } from '../auth/access';
 import { Public } from '../auth/access';
 import {
     Controller,
@@ -8,6 +9,7 @@ import {
     Param,
     Delete,
     Query,
+    Req,
     UseInterceptors,
     UploadedFiles,
     BadRequestException,
@@ -26,7 +28,8 @@ export class PropertyController {
     constructor(private readonly propertyService: PropertyService) {}
 
     @Post()
-    create(@Body() createPropertyDto: CreatePropertyDto) {
+    create(@Req() req: AuthRequest, @Body() createPropertyDto: CreatePropertyDto) {
+        createPropertyDto.ownerId = req.user.id;
         return this.propertyService.create(createPropertyDto);
     }
 
