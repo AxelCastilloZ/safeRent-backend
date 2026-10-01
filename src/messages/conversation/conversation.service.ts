@@ -51,11 +51,21 @@ export class ConversationService {
       throw new NotFoundException(`User with Id ${userId} not found`);
     }
 
-    return await this.conversationRepo.find({
-      where: { participants: { id: userId } },
-      relations: { participants: true, property: true },
-      order: { createdAt: 'DESC' },
-    });
+    // No usar find({ where: { participants: { id } }, relations: { participants: true } }):
+    // TypeORM aplica ese where también sobre la relación cargada, así que
+    // `participants` queda recortado a solo ese usuario (el mismo problema que
+    // ya resuelve PropertyService con serviceIds). Se separa el join que
+    // filtra del que trae todos los participantes.
+    return await this.conversationRepo
+      .createQueryBuilder('conversation')
+      .innerJoin('conversation.participants', 'me', 'me.id = :userId', { userId })
+      .leftJoinAndSelect('conversation.participants', 'participants')
+      .leftJoinAndSelect('conversation.property', 'property')
+      .leftJoinAndSelect('property.owner', 'owner')
+      .leftJoinAndSelect('property.typeOfProperty', 'typeOfProperty')
+      .leftJoinAndSelect('property.services', 'services')
+      .orderBy('conversation.createdAt', 'DESC')
+      .getMany();
   }
 
   async findOne(id: number) {
