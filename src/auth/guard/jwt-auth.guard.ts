@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { UserService } from 'src/user/user.service';
+import { UserService } from '../../user/user.service';
 import { AuthRequest, PUBLIC_KEY } from '../access';
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -53,6 +53,8 @@ export class JwtAuthGuard implements CanActivate {
 
     request.user = {
       id: user.id,
+      name: user.name,
+      surname1: user.surname1,
       roles: user.Roles
         .filter((role) => role.isActive)
         .map((role) => role.name),
