@@ -20,6 +20,7 @@ export type AuthRequest = Request & {
     id: number;
     name: string;
     surname1: string;
+    email: string;
     roles: string[];
   };
 };

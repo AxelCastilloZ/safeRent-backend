@@ -55,6 +55,7 @@ export class JwtAuthGuard implements CanActivate {
       id: user.id,
       name: user.name,
       surname1: user.surname1,
+      email: user.email,
       roles: user.Roles
         .filter((role) => role.isActive)
         .map((role) => role.name),

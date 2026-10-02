@@ -30,12 +30,12 @@ describe('Authenticated account identity', () => {
   it('exposes initials data and active roles without private user fields', async () => {
     verifyAsync.mockResolvedValue({ sub: 1 });
     findForAuth.mockResolvedValue({
-      id: 1, name: 'José', surname1: 'Pérez', password: 'private hash', idCard: 'private ID',
+      id: 1, name: 'José', surname1: 'Pérez', email: 'jose@example.com', password: 'private hash', idCard: 'private ID',
       Roles: [{ name: 'CLIENT', isActive: true }, { name: 'OWNER', isActive: false }],
     });
     const request = { headers: { authorization: 'Bearer valid-token' }, user: undefined };
     await expect(guard.canActivate(context(request))).resolves.toBe(true);
-    expect(request.user).toEqual({ id: 1, name: 'José', surname1: 'Pérez', roles: ['CLIENT'] });
+    expect(request.user).toEqual({ id: 1, name: 'José', surname1: 'Pérez', email: 'jose@example.com', roles: ['CLIENT'] });
   });
 
   it('rejects expired tokens before loading account identity', async () => {
