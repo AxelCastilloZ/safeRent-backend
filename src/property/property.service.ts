@@ -63,7 +63,18 @@ export class PropertyService {
         return await this.propertyRepo.save(newProperty);
     }
 
-    async findAll({ serviceIds = [] }: FindPropertiesDto = {}) {
+    async findAll(dto: FindPropertiesDto = {}) {
+        const {
+            serviceIds = [],
+            typeOfPropertyId,
+            minPrice,
+            maxPrice,
+            search,
+            minRooms,
+            page = 1,
+            limit = 20,
+        } = dto;
+
         const query = this.propertyRepo.createQueryBuilder('property')
             .leftJoinAndSelect('property.typeOfProperty', 'typeOfProperty')
             .leftJoinAndSelect('property.services', 'services')
@@ -71,14 +82,51 @@ export class PropertyService {
             .leftJoinAndSelect('property.iconDescriptions', 'iconDescriptions')
             .where('property.isActive = :isActive', { isActive: true });
 
-        // Independent joins implement ALL selected services, while the services
-        // relation above still returns every amenity of each matching property.
+        if (typeOfPropertyId) {
+            query.andWhere('typeOfProperty.id = :typeOfPropertyId', { typeOfPropertyId });
+        }
+
+        if (minPrice !== undefined) {
+            query.andWhere('property.cost >= :minPrice', { minPrice });
+        }
+
+        if (maxPrice !== undefined) {
+            query.andWhere('property.cost <= :maxPrice', { maxPrice });
+        }
+
+        if (search) {
+            query.andWhere(
+                '(LOWER(property.title) LIKE :search OR LOWER(property.address) LIKE :search)',
+                { search: `%${search.toLowerCase()}%` },
+            );
+        }
+
+        if (minRooms) {
+            query.andWhere('property.rooms >= :minRooms', { minRooms });
+        }
+
         [...new Set(serviceIds)].forEach((id, index) => {
             const alias = `selectedService${index}`;
             query.innerJoin('property.services', alias, `${alias}.id = :serviceId${index}`, { [`serviceId${index}`]: id });
         });
 
-        return query.orderBy('property.id', 'DESC').getMany();
+        const [data, total] = await query
+            .orderBy('property.id', 'DESC')
+            .skip((page - 1) * limit)
+            .take(limit)
+            .getManyAndCount();
+
+        return {
+            data,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        };
+    }
+
+    async findAllTypes() {
+        return this.typeOfPropertyRepo.find({ order: { name: 'ASC' } });
     }
 
     async findPublic(id: number) {
