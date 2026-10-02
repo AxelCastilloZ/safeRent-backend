@@ -18,6 +18,8 @@ export const Roles = (...roles: AppRole[]) =>
 export type AuthRequest = Request & {
   user: {
     id: number;
+    name: string;
+    surname1: string;
     roles: string[];
   };
 };
