@@ -41,6 +41,12 @@ export class PropertyController {
 
     // IMPORTANTE: rutas específicas antes de :id
     @Public()
+    @Get('types')
+    findAllTypes() {
+        return this.propertyService.findAllTypes();
+    }
+
+    @Public()
     @Get('active')
     findActive(@Query() query: FindPropertiesDto) {
         return this.propertyService.findActive(query);
