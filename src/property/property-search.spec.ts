@@ -6,6 +6,7 @@ import type { Server } from 'node:http';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { PropertyController } from './property.controller';
 import { PropertyService } from './property.service';
+import { LocationService } from './location.service';
 import { Property } from './entities/property.entity';
 import { PropertyFile } from './entities/property-file.entity';
 import { TypeOfProperty } from './entities/type-of-property.entity';
@@ -21,7 +22,7 @@ describe('Property search HTTP query', () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [PropertyController],
-      providers: [{ provide: PropertyService, useValue: service }],
+      providers: [{ provide: PropertyService, useValue: service }, { provide: LocationService, useValue: { search: jest.fn() } }],
     }).compile();
     app = module.createNestApplication();
     app.useGlobalPipes(

@@ -8,6 +8,7 @@ import { ServiceModule } from '../service/service.module';
 import { PropertyFile } from './entities/property-file.entity';
 import { IconDescription } from './entities/icon-description.entity';
 import { User } from '../user/entities/user.entity';
+import { LocationService } from './location.service';
 
 @Module({
     imports: [
@@ -21,7 +22,7 @@ import { User } from '../user/entities/user.entity';
         ]),
     ],
     controllers: [PropertyController],
-    providers: [PropertyService],
+    providers: [PropertyService, LocationService],
     exports: [PropertyService],
 })
 export class PropertyModule {}

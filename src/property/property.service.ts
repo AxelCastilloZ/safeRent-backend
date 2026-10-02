@@ -8,7 +8,7 @@ import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { User } from '../user/entities/user.entity';
 import { FindPropertiesDto } from './dto/find-properties.dto';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as fs from 'fs';
 
@@ -54,6 +54,7 @@ export class PropertyService {
 
         const newProperty = this.propertyRepo.create({
             ...rest,
+            address: rest.address ?? '',
             owner,
             typeOfProperty,
             services,
@@ -199,13 +200,24 @@ export class PropertyService {
 
         Object.assign(property, rest);
 
+        if (property.isActive) this.validateLocation(property);
+
         return await this.propertyRepo.save(property);
     }
 
     async publish(id: number) {
         const property = await this.findOne(id);
+        this.validateLocation(property);
         property.isActive = true;
         return await this.propertyRepo.save(property);
+    }
+
+    private validateLocation(property: Property) {
+        if (!property.address?.trim() || property.address.length > 300 ||
+            !Number.isFinite(property.latitude) || !Number.isFinite(property.longitude) ||
+            Math.abs(property.latitude!) > 90 || Math.abs(property.longitude!) > 180) {
+            throw new BadRequestException('Completa la dirección y confirma la ubicación en el mapa antes de publicar.');
+        }
     }
 
     async remove(id: number) {

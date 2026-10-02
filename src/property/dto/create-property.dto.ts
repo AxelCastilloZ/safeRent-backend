@@ -53,16 +53,14 @@ export class CreatePropertyDto {
     })
     typeOfCoin?: string;
 
-    @IsNotEmpty({
-        message: 'The address is required.',
-    })
+    @IsOptional()
     @IsString({
         message: 'The address must be a string.',
     })
     @MaxLength(300, {
         message: 'The address cannot exceed 300 characters.',
     })
-    address!: string;
+    address?: string;
 
     @IsOptional()
     @IsNumber()

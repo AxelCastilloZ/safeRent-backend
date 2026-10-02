@@ -22,10 +22,17 @@ import { PropertyService } from './property.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { FindPropertiesDto } from './dto/find-properties.dto';
+import { SearchLocationDto } from './dto/search-location.dto';
+import { LocationService } from './location.service';
 
 @Controller('properties')
 export class PropertyController {
-    constructor(private readonly propertyService: PropertyService) {}
+    constructor(private readonly propertyService: PropertyService, private readonly locationService: LocationService) {}
+
+    @Get('locations/search')
+    searchLocations(@Query() query: SearchLocationDto) {
+        return this.locationService.search(query.text);
+    }
 
     @Post()
     create(@Req() req: AuthRequest, @Body() createPropertyDto: CreatePropertyDto) {
