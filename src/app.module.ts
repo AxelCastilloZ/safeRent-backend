@@ -8,6 +8,8 @@ import { RoleModule } from './role/role.module';
 import { PropertyModule } from './property/property.module';
 import { ServiceModule } from './service/service.module';
 import { MessagesModule } from './messages/messages.module';
+import { CommentModule } from './comment/comment.module';
+import { ReservationModule } from './reservation/reservation.module';
 import { AuthModule } from './auth/auth.module';
 
 @Module({
@@ -33,6 +35,8 @@ import { AuthModule } from './auth/auth.module';
     ServiceModule,
     MessagesModule,
     AuthModule,
+    ReservationModule,
+    CommentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

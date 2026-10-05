@@ -157,6 +157,9 @@ export class PropertyService {
             services: property.services, iconDescriptions: property.iconDescriptions,
             files: property.files.map(({ path, mimeType }) => ({ path, mimeType })),
             owner: { id: property.owner.id, name: property.owner.name },
+            reservedTenantId: property.reservedTenantId,
+            reservedTenantName: property.reservedTenantName,
+            reservedAt: property.reservedAt,
         };
     }
 

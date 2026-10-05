@@ -92,7 +92,22 @@ export class Property {
     @CreateDateColumn({ type: 'timestamptz' })
     createdAt!: Date;
 
+    @Column({ type: 'int', nullable: true })
+    reservedTenantId!: number | null;
+
+    @Column({ type: 'varchar', length: 350, nullable: true })
+    reservedTenantName!: string | null;
+
+    @Column({ type: 'timestamptz', nullable: true })
+    reservedAt!: Date | null;
+
+    @ManyToOne(() => User, { nullable: true, onDelete: 'RESTRICT' })
+    reservedTenant?: User | null;
+
     // --- Relations ---
+
+    @Column({ type: 'int' })
+    ownerId!: number;
 
     @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
     owner!: User;
