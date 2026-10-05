@@ -32,11 +32,20 @@ async function main() {
     const comment = list.find((item) => item.id === saved.id);
     if (!comment || comment.author.id !== tenant.id) throw new Error('No se guardó la relación del comentario');
     if ('email' in comment.author || 'password' in comment.author || 'idCard' in comment.author) throw new Error('El listado expone información privada');
+    const admins: { id: number }[] = await runner.query('SELECT ur."userId" AS id FROM user_role ur JOIN role r ON r.id=ur."roleId" WHERE r.name=$1 LIMIT 1', ['ADMIN']);
+    if (!admins.length) throw new Error('No hay administrador para comprobar');
+    await service.moderate(saved.id, admins[0].id, { hidden: true, note: 'Prueba de moderación' });
+    if ((await service.findByProperty(id)).some((item) => item.id === saved.id)) throw new Error('El comentario oculto sigue visible');
+    if (!(await service.findOwn(id, tenant.id))?.hidden) throw new Error('No se conserva el comentario del autor');
+    const adminList = await service.findForAdmin();
+    if (!adminList.some((item) => item.id === saved.id && item.hidden && item.property.id === id)) throw new Error('El administrador no ve el comentario oculto');
+    await service.moderate(saved.id, admins[0].id, { hidden: false });
+    if (!(await service.findByProperty(id)).some((item) => item.id === saved.id)) throw new Error('No se restauró el comentario');
     let blocked = false;
     try { await service.create(id, conversation.property.owner.id, { content: 'No permitido' }); }
     catch { blocked = true; }
     if (!blocked) throw new Error('El propietario pudo comentar');
-    console.log('Comentario, relación, lectura y permiso verificados en PostgreSQL. Se revierte toda la prueba.');
+    console.log('Comentario, relación, permisos y moderación verificados en PostgreSQL. Se revierte toda la prueba.');
   } finally {
     if (runner.isTransactionActive) await runner.rollbackTransaction();
     await runner.release();
