@@ -1,5 +1,5 @@
 import { Role } from "src/role/entities/role.entity";
-import { Column, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import { Conversation } from "../../messages/conversation/entities/conversation.entity";
 import { Message } from "../../messages/message/entities/message.entity";
 
@@ -64,6 +64,9 @@ export class User {
         default: true,
     })
     isActive!: boolean;
+
+    @CreateDateColumn({ type: 'timestamptz' })
+    createdAt!: Date;
 
     //RELATIONSHIPS
     @ManyToMany(()=>Role)

@@ -7,6 +7,18 @@ import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import { RoleService } from 'src/role/role.service';
 
+/** Forma segura de un usuario para el panel de administración: sin cédula, teléfono ni fecha de nacimiento. */
+export interface AdminUserView {
+  id: number;
+  name: string;
+  surname1: string;
+  surname2?: string;
+  email: string;
+  isActive: boolean;
+  createdAt: Date;
+  roles: { id: number; name: string; isActive: boolean }[];
+}
+
 @Injectable()
 export class UserService {
   constructor(
@@ -27,14 +39,96 @@ export class UserService {
     return await this.userRepo.save(newUser);
   }
 
-  async findAll() {
+  /** Listado para el panel de administración: proyección segura (sin cédula, teléfono ni fecha de nacimiento). */
+  async findAllForAdmin(): Promise<AdminUserView[]> {
     const users = await this.userRepo.find({
-      relations: { Roles: true,},
+      relations: { Roles: true },
+      order: { id: 'DESC' },
     });
-    if (users.length === 0) {
-      throw new NotFoundException('No users found');
+    return users.map((user) => this.toAdminView(user));
+  }
+
+  private toAdminView(user: User): AdminUserView {
+    return {
+      id: user.id,
+      name: user.name,
+      surname1: user.surname1,
+      surname2: user.surname2,
+      email: user.email,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      roles: (user.Roles ?? []).map((role) => ({
+        id: role.id,
+        name: role.name,
+        isActive: role.isActive,
+      })),
+    };
+  }
+
+  /** Activa o desactiva la cuenta (p. ej. por mal uso de la aplicación) sin borrar al usuario. */
+  async setActive(id: number, isActive: boolean) {
+    await this.findOne(id);
+    await this.userRepo.update(id, { isActive });
+    const user = await this.userRepo.findOne({ where: { id }, relations: { Roles: true } });
+    return this.toAdminView(user!);
+  }
+
+  /** Agrega un rol al usuario (p. ej. convertir un inquilino también en propietario). */
+  async addRole(id: number, roleId: number) {
+    const user = await this.userRepo.findOne({ where: { id }, relations: { Roles: true } });
+    if (!user) {
+      throw new NotFoundException(`User with Id ${id} not found`);
     }
-    return users;
+
+    const role = await this.rolesService.findOne(roleId);
+
+    if (!user.Roles.some((existing) => existing.id === role.id)) {
+      user.Roles = [...user.Roles, role];
+      await this.userRepo.save(user);
+    }
+
+    return this.toAdminView(user);
+  }
+
+  /** Quita un rol del usuario. Falla si es el único rol que le queda: todo usuario debe tener al menos uno. */
+  async removeRole(id: number, roleId: number) {
+    const user = await this.userRepo.findOne({ where: { id }, relations: { Roles: true } });
+    if (!user) {
+      throw new NotFoundException(`User with Id ${id} not found`);
+    }
+
+    if (user.Roles.length <= 1 && user.Roles.some((role) => role.id === roleId)) {
+      throw new ConflictException('El usuario debe conservar al menos un rol.');
+    }
+
+    user.Roles = user.Roles.filter((role) => role.id !== roleId);
+    await this.userRepo.save(user);
+
+    return this.toAdminView(user);
+  }
+
+  /**
+   * Garantiza que el usuario tenga el rol indicado; si ya lo tiene, no hace nada.
+   * Se usa para otorgar automáticamente el rol de propietario cuando un inquilino
+   * crea su primera propiedad (ver PropertyService.create).
+   */
+  async ensureRole(id: number, roleName: string): Promise<void> {
+    const user = await this.userRepo.findOne({ where: { id }, relations: { Roles: true } });
+    if (!user) {
+      throw new NotFoundException(`User with Id ${id} not found`);
+    }
+
+    if (user.Roles.some((role) => role.name === roleName)) {
+      return;
+    }
+
+    const role = await this.rolesService.findActiveByName(roleName);
+    if (!role) {
+      return;
+    }
+
+    user.Roles = [...user.Roles, role];
+    await this.userRepo.save(user);
   }
 
   async findOne(id: number) {

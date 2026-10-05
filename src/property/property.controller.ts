@@ -1,5 +1,5 @@
 import type { AuthRequest } from '../auth/access';
-import { Public } from '../auth/access';
+import { AppRole, Public, Roles } from '../auth/access';
 import {
     Controller,
     Get,
@@ -22,6 +22,8 @@ import { PropertyService } from './property.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { FindPropertiesDto } from './dto/find-properties.dto';
+import { FindPropertiesAdminDto } from './dto/find-properties-admin.dto';
+import { ReviewPropertyDto } from './dto/review-property.dto';
 import { SearchLocationDto } from './dto/search-location.dto';
 import { LocationService } from './location.service';
 
@@ -70,6 +72,13 @@ export class PropertyController {
         return this.propertyService.findByOwner(ownerId);
     }
 
+    // Solo administradores: todas las propiedades (cualquier estado) con su propietario.
+    @Roles(AppRole.ADMIN)
+    @Get('admin/all')
+    findAllForAdmin(@Query() query: FindPropertiesAdminDto) {
+        return this.propertyService.findAllForAdmin(query);
+    }
+
     // :id después de las rutas específicas
     @Public()
     @Get(':id')
@@ -88,6 +97,13 @@ export class PropertyController {
     @Patch(':id/publish')
     publish(@Param('id') id: number) {
         return this.propertyService.publish(id);
+    }
+
+    // Solo administradores: aprueba, pide cambios o rechaza una propiedad en revisión.
+    @Roles(AppRole.ADMIN)
+    @Patch(':id/review')
+    review(@Param('id', ParseIntPipe) id: number, @Body() reviewPropertyDto: ReviewPropertyDto) {
+        return this.propertyService.review(id, reviewPropertyDto);
     }
 
     @Delete(':id')

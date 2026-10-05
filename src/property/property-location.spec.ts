@@ -7,6 +7,7 @@ import { PropertyFile } from './entities/property-file.entity';
 import { IconDescription } from './entities/icon-description.entity';
 import { User } from '../user/entities/user.entity';
 import { ServiceService } from '../service/service.service';
+import { UserService } from '../user/user.service';
 
 describe('Property location publishing', () => {
   const findOne = jest.fn();
@@ -15,6 +16,7 @@ describe('Property location publishing', () => {
     { findOne, save } as unknown as Repository<Property>,
     {} as Repository<TypeOfProperty>, {} as ServiceService,
     {} as Repository<PropertyFile>, {} as Repository<IconDescription>, {} as Repository<User>,
+    { ensureRole: jest.fn() } as unknown as UserService,
   );
   beforeEach(() => { save.mockClear(); });
   it.each([

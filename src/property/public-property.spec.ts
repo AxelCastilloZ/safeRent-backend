@@ -7,6 +7,7 @@ import { PropertyFile } from './entities/property-file.entity';
 import { IconDescription } from './entities/icon-description.entity';
 import { User } from '../user/entities/user.entity';
 import { ServiceService } from '../service/service.service';
+import { UserService } from '../user/user.service';
 
 describe('Public property details', () => {
   const findOne = jest.fn();
@@ -15,6 +16,7 @@ describe('Public property details', () => {
     {} as Repository<TypeOfProperty>, {} as ServiceService,
     {} as Repository<PropertyFile>, {} as Repository<IconDescription>,
     {} as Repository<User>,
+    { ensureRole: jest.fn() } as unknown as UserService,
   );
   it('only queries published properties and exposes the public owner fields', async () => {
     findOne.mockResolvedValue({

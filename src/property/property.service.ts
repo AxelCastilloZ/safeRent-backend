@@ -8,6 +8,11 @@ import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { User } from '../user/entities/user.entity';
 import { FindPropertiesDto } from './dto/find-properties.dto';
+import { FindPropertiesAdminDto } from './dto/find-properties-admin.dto';
+import { ReviewPropertyDto } from './dto/review-property.dto';
+import { PropertyStatus } from './property-status.enum';
+import { UserService } from '../user/user.service';
+import { AppRole } from '../auth/access';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as fs from 'fs';
@@ -31,6 +36,8 @@ export class PropertyService {
 
         @InjectRepository(User)
         private readonly userRepo: Repository<User>,
+
+        private readonly userService: UserService,
     ) {}
 
     async create(createPropertyDto: CreatePropertyDto) {
@@ -58,10 +65,15 @@ export class PropertyService {
             owner,
             typeOfProperty,
             services,
-            isActive: false,
+            status: PropertyStatus.DRAFT,
         });
 
-        return await this.propertyRepo.save(newProperty);
+        const saved = await this.propertyRepo.save(newProperty);
+
+        // Quien crea una propiedad pasa a ser también propietario (además de inquilino, si ya lo era).
+        await this.userService.ensureRole(owner.id, AppRole.OWNER);
+
+        return saved;
     }
 
     async findAll(dto: FindPropertiesDto = {}) {
@@ -81,7 +93,7 @@ export class PropertyService {
             .leftJoinAndSelect('property.services', 'services')
             .leftJoinAndSelect('property.files', 'files')
             .leftJoinAndSelect('property.iconDescriptions', 'iconDescriptions')
-            .where('property.isActive = :isActive', { isActive: true });
+            .where('property.status = :status', { status: PropertyStatus.ACTIVE });
 
         if (typeOfPropertyId) {
             query.andWhere('typeOfProperty.id = :typeOfPropertyId', { typeOfPropertyId });
@@ -132,7 +144,7 @@ export class PropertyService {
 
     async findPublic(id: number) {
         const property = await this.propertyRepo.findOne({
-            where: { id, isActive: true },
+            where: { id, status: PropertyStatus.ACTIVE },
             relations: { files: true, iconDescriptions: true },
         });
         if (!property) throw new NotFoundException('Propiedad no disponible');
@@ -200,15 +212,50 @@ export class PropertyService {
 
         Object.assign(property, rest);
 
-        if (property.isActive) this.validateLocation(property);
+        return await this.propertyRepo.save(property);
+    }
+
+    /**
+     * Acción del propietario: envía la propiedad a revisión (no la activa). Queda en estado
+     * PENDING hasta que un administrador la apruebe con `review()`.
+     */
+    async publish(id: number) {
+        const property = await this.findOne(id);
+
+        if (property.status === PropertyStatus.ACTIVE) {
+            throw new BadRequestException('La propiedad ya está activa.');
+        }
+        if (property.status === PropertyStatus.PENDING) {
+            throw new BadRequestException('La propiedad ya está en revisión.');
+        }
+
+        this.validateReadyForReview(property);
+
+        property.status = PropertyStatus.PENDING;
+        property.reviewNote = undefined;
+        property.reviewedAt = undefined;
 
         return await this.propertyRepo.save(property);
     }
 
-    async publish(id: number) {
+    /**
+     * Acción del administrador: aprueba, pide cambios o rechaza una propiedad enviada a revisión.
+     */
+    async review(id: number, dto: ReviewPropertyDto) {
         const property = await this.findOne(id);
-        this.validateLocation(property);
-        property.isActive = true;
+
+        if (property.status === PropertyStatus.DRAFT) {
+            throw new BadRequestException('La propiedad todavía no fue enviada a revisión.');
+        }
+
+        if (dto.status === PropertyStatus.ACTIVE) {
+            this.validateReadyForReview(property);
+        }
+
+        property.status = dto.status;
+        property.reviewNote = dto.status === PropertyStatus.ACTIVE ? undefined : dto.note;
+        property.reviewedAt = new Date();
+
         return await this.propertyRepo.save(property);
     }
 
@@ -220,14 +267,65 @@ export class PropertyService {
         }
     }
 
+    /** Requisitos mínimos para que una propiedad pase a revisión o quede activa. */
+    private validateReadyForReview(property: Property) {
+        if (!property.title?.trim() || !property.description?.trim()) {
+            throw new BadRequestException('Completa el título y la descripción antes de enviar a revisión.');
+        }
+
+        this.validateLocation(property);
+
+        if ((property.files?.length ?? 0) < 3) {
+            throw new BadRequestException('Agrega al menos 3 imágenes antes de enviar a revisión.');
+        }
+
+        if (!property.services?.length) {
+            throw new BadRequestException('Selecciona al menos un servicio antes de enviar a revisión.');
+        }
+    }
+
     async remove(id: number) {
         const property = await this.findOne(id);
-        property.isActive = false;
+        property.status = PropertyStatus.INACTIVE;
         return await this.propertyRepo.save(property);
     }
 
     async findActive(query: FindPropertiesDto = {}) {
         return this.findAll(query);
+    }
+
+    /** Listado para el panel de administración: todas las propiedades, con propietario, filtrables por estado. */
+    async findAllForAdmin(dto: FindPropertiesAdminDto = {}) {
+        const { status, search, page = 1, limit = 20 } = dto;
+
+        const query = this.propertyRepo.createQueryBuilder('property')
+            .leftJoinAndSelect('property.owner', 'owner')
+            .leftJoinAndSelect('property.typeOfProperty', 'typeOfProperty');
+
+        if (status) {
+            query.andWhere('property.status = :status', { status });
+        }
+
+        if (search) {
+            query.andWhere(
+                '(LOWER(property.title) LIKE :search OR LOWER(property.address) LIKE :search OR LOWER(owner.name) LIKE :search)',
+                { search: `%${search.toLowerCase()}%` },
+            );
+        }
+
+        const [data, total] = await query
+            .orderBy('property.id', 'DESC')
+            .skip((page - 1) * limit)
+            .take(limit)
+            .getManyAndCount();
+
+        return {
+            data,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        };
     }
 
     // --- File methods ---
