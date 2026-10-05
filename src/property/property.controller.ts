@@ -1,3 +1,4 @@
+import { AccessTo } from '../auth/guard/resource-access.guard';
 import type { AuthRequest } from '../auth/access';
 import { AppRole, Public, Roles } from '../auth/access';
 import {
@@ -31,11 +32,13 @@ import { LocationService } from './location.service';
 export class PropertyController {
     constructor(private readonly propertyService: PropertyService, private readonly locationService: LocationService) {}
 
+    @Roles(AppRole.OWNER, AppRole.ADMIN)
     @Get('locations/search')
     searchLocations(@Query() query: SearchLocationDto) {
         return this.locationService.search(query.text);
     }
 
+    @Roles(AppRole.OWNER)
     @Post()
     create(@Req() req: AuthRequest, @Body() createPropertyDto: CreatePropertyDto) {
         createPropertyDto.ownerId = req.user.id;
@@ -61,12 +64,14 @@ export class PropertyController {
         return this.propertyService.findActive(query);
     }
 
-    @Public()
+    @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @Get('active/:id')
     findPublic(@Param('id', ParseIntPipe) id: number) {
         return this.propertyService.findPublic(id);
     }
 
+    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @AccessTo('owner-list')
     @Get('owner/:ownerId')
     findByOwner(@Param('ownerId') ownerId: number) {
         return this.propertyService.findByOwner(ownerId);
@@ -80,12 +85,15 @@ export class PropertyController {
     }
 
     // :id después de las rutas específicas
-    @Public()
+    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @AccessTo('property')
     @Get(':id')
     findOne(@Param('id') id: number) {
         return this.propertyService.findOne(id);
     }
 
+    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @AccessTo('property')
     @Patch(':id')
     update(
         @Param('id') id: number,
@@ -94,6 +102,8 @@ export class PropertyController {
         return this.propertyService.update(id, updatePropertyDto);
     }
 
+    @Roles(AppRole.OWNER)
+    @AccessTo('property')
     @Patch(':id/publish')
     publish(@Param('id') id: number) {
         return this.propertyService.publish(id);
@@ -106,6 +116,8 @@ export class PropertyController {
         return this.propertyService.review(id, reviewPropertyDto);
     }
 
+    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @AccessTo('property')
     @Delete(':id')
     remove(@Param('id') id: number) {
         return this.propertyService.remove(id);
@@ -113,6 +125,8 @@ export class PropertyController {
 
     // --- File endpoints ---
 
+    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @AccessTo('property')
     @Post(':id/files')
     @UseInterceptors(
         FilesInterceptor('files', 10, {
@@ -149,11 +163,15 @@ export class PropertyController {
         return this.propertyService.saveFiles(id, files);
     }
 
+    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @AccessTo('property')
     @Get(':id/files')
     getFiles(@Param('id') id: number) {
         return this.propertyService.getFiles(id);
     }
 
+    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @AccessTo('property')
     @Delete(':id/files/:fileId')
     removeFile(@Param('id') id: number, @Param('fileId') fileId: number) {
         return this.propertyService.removeFile(id, fileId);

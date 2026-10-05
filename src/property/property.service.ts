@@ -70,7 +70,7 @@ export class PropertyService {
 
         const saved = await this.propertyRepo.save(newProperty);
 
-        // Quien crea una propiedad pasa a ser también propietario (además de inquilino, si ya lo era).
+        // La creación requiere OWNER en el controlador; conserva ese rol en la cuenta.
         await this.userService.ensureRole(owner.id, AppRole.OWNER);
 
         return saved;
@@ -191,15 +191,7 @@ export class PropertyService {
     async update(id: number, updatePropertyDto: UpdatePropertyDto) {
         const property = await this.findOne(id);
 
-        const { ownerId, typeOfPropertyId, serviceIds, ...rest } = updatePropertyDto;
-
-        if (ownerId) {
-            const owner = await this.userRepo.findOneBy({ id: ownerId });
-            if (!owner) {
-                throw new NotFoundException(`User with Id ${ownerId} not found`);
-            }
-            property.owner = owner;
-        }
+        const { typeOfPropertyId, serviceIds, ...rest } = updatePropertyDto;
 
         if (typeOfPropertyId) {
             const typeOfProperty = await this.typeOfPropertyRepo.findOneBy({ id: typeOfPropertyId });

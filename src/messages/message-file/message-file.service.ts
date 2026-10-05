@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { StreamableFile, BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as fs from 'fs';
@@ -33,6 +33,15 @@ export class MessageFileService {
     );
 
     return await this.messageFileRepo.save(messageFiles);
+  }
+
+  async download(messageId: number, fileId: number) {
+    const file = await this.messageFileRepo.findOneBy({ id: fileId, message: { id: messageId } });
+    if (!file || !fs.existsSync(file.path)) throw new NotFoundException('Archivo no encontrado');
+    return new StreamableFile(fs.createReadStream(file.path), {
+      type: file.mimeType,
+      disposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
+    });
   }
 
   async list(messageId: number) {

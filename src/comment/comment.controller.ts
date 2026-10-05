@@ -32,6 +32,7 @@ export class CommentController {
     return this.comments.findByProperty(propertyId);
   }
 
+  @Roles(AppRole.CLIENT)
   @Post('property/:propertyId')
   create(@Param('propertyId', ParseIntPipe) propertyId: number, @Body() dto: CreateCommentDto, @Req() req: AuthRequest) {
     return this.comments.create(propertyId, req.user.id, dto);

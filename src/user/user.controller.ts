@@ -3,13 +3,13 @@ import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SetUserActiveDto } from './dto/set-user-active.dto';
-import { AppRole, Roles } from 'src/auth/access';
+import { AppRole, Roles } from '../auth/access';
 
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  // El registro público vive en /auth/register (siempre crea CLIENT); este endpoint
+  // El registro público vive en /auth/register (CLIENT u OWNER); este endpoint
   // lo usa el administrador para crear cuentas directamente con un rol específico.
   @Roles(AppRole.ADMIN)
   @Post()
@@ -58,7 +58,7 @@ export class UserController {
     return this.userService.removeRole(id, roleId);
   }
 
-  // Elimina la cuenta de la aplicación (p. ej. por mal uso confirmado).
+  // Desactiva la cuenta conservando sus conversaciones, reservas y comentarios.
   @Roles(AppRole.ADMIN)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {

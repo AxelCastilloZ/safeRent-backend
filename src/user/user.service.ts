@@ -1,11 +1,11 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
-import { RoleService } from 'src/role/role.service';
+import { RoleService } from '../role/role.service';
 
 /** Forma segura de un usuario para el panel de administración: sin cédula, teléfono ni fecha de nacimiento. */
 export interface AdminUserView {
@@ -35,8 +35,10 @@ export class UserService {
 
     const role= await this.rolesService.findOne(roleId);
 
+    if (!role.isActive) throw new BadRequestException('El rol está desactivado');
     const newUser = this.userRepo.create({...rest, password:hashed, Roles: [role]});
-    return await this.userRepo.save(newUser);
+    const saved = await this.userRepo.save(newUser);
+    return this.toAdminView(saved);
   }
 
   /** Listado para el panel de administración: proyección segura (sin cédula, teléfono ni fecha de nacimiento). */
@@ -82,6 +84,7 @@ export class UserService {
 
     const role = await this.rolesService.findOne(roleId);
 
+    if (!role.isActive) throw new BadRequestException('El rol está desactivado');
     if (!user.Roles.some((existing) => existing.id === role.id)) {
       user.Roles = [...user.Roles, role];
       await this.userRepo.save(user);
@@ -109,8 +112,7 @@ export class UserService {
 
   /**
    * Garantiza que el usuario tenga el rol indicado; si ya lo tiene, no hace nada.
-   * Se usa para otorgar automáticamente el rol de propietario cuando un inquilino
-   * crea su primera propiedad (ver PropertyService.create).
+   * PropertyService.create lo utiliza después de comprobar OWNER en el controlador.
    */
   async ensureRole(id: number, roleName: string): Promise<void> {
     const user = await this.userRepo.findOne({ where: { id }, relations: { Roles: true } });
@@ -147,8 +149,7 @@ export class UserService {
   }
 
   async remove(id: number) {
-    const user = await this.findOne(id);
-    return await this.userRepo.remove(user);
+    return this.setActive(id, false);
   }
   
   async userCheck(idCard: string, email: string) {

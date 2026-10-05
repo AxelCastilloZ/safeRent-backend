@@ -1,4 +1,4 @@
-import { Role } from "src/role/entities/role.entity";
+import { Role } from "../../role/entities/role.entity";
 import { Column, CreateDateColumn, Entity, JoinTable, ManyToMany, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import { Conversation } from "../../messages/conversation/entities/conversation.entity";
 import { Message } from "../../messages/message/entities/message.entity";

@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { PropertyStatus } from '../../property/property-status.enum';
 import { Conversation } from './entities/conversation.entity';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { User } from '../../user/entities/user.entity';
@@ -18,6 +19,13 @@ export class ConversationService {
     @InjectRepository(Property)
     private readonly propertyRepo: Repository<Property>,
   ) {}
+
+  async createForUser(propertyId: number, userId: number) {
+    const property = await this.propertyRepo.findOneBy({ id: propertyId, status: PropertyStatus.ACTIVE });
+    if (!property || !property.owner?.isActive) throw new NotFoundException('Propiedad no disponible');
+    if (property.owner.id === userId) throw new BadRequestException('No puedes iniciar un chat contigo mismo');
+    return this.create({ propertyId, participantIds: [userId, property.owner.id] });
+  }
 
   async create(createConversationDto: CreateConversationDto) {
     const { participantIds, propertyId } = createConversationDto;
