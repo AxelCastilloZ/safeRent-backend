@@ -1,24 +1,31 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayUnique,
   IsArray,
   IsInt,
+  IsOptional,
+  IsString,
   Max,
+  MaxLength,
   Min,
-  ValidateIf,
 } from 'class-validator';
 
 export class FindPropertiesDto {
-  @ValidateIf((_object, value: unknown) => value !== undefined)
+  @IsOptional()
   @Transform(({ value }: { value: unknown }) => {
-    const values = Array.isArray(value) ? (value as unknown[]) : [value];
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
+
+    const values = Array.isArray(value) ? value : [value];
+
     return values
-      .flatMap((item) => (typeof item === 'string' ? item.split(',') : [item]))
-      .map((item: unknown) =>
-        typeof item === 'string' && /^[1-9]\d*$/.test(item.trim())
-          ? Number(item.trim())
-          : item,
+      .flatMap((item) =>
+        typeof item === 'string' ? item.split(',') : [item],
+      )
+      .map((item) =>
+        typeof item === 'string' ? Number(item.trim()) : item,
       );
   })
   @IsArray()
@@ -28,4 +35,45 @@ export class FindPropertiesDto {
   @Min(1, { each: true })
   @Max(2147483647, { each: true })
   serviceIds?: number[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  typeOfPropertyId?: number;
+
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  minPrice?: number;
+
+  @IsOptional()
+  @Min(0)
+  @Type(() => Number)
+  maxPrice?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  search?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  minRooms?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  @Type(() => Number)
+  page?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @Type(() => Number)
+  limit?: number;
 }

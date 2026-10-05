@@ -4,8 +4,11 @@ import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { UserModule } from './user/user.module';
+import { RoleModule } from './role/role.module';
 import { PropertyModule } from './property/property.module';
 import { ServiceModule } from './service/service.module';
+import { MessagesModule } from './messages/messages.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -25,8 +28,11 @@ import { ServiceModule } from './service/service.module';
     }),
 
     UserModule,
+    RoleModule,
     PropertyModule,
     ServiceModule,
+    MessagesModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

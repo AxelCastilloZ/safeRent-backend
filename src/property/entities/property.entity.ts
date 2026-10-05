@@ -1,5 +1,6 @@
 import {
     Column,
+    CreateDateColumn,
     Entity,
     JoinTable,
     ManyToMany,
@@ -12,6 +13,8 @@ import { TypeOfProperty } from "./type-of-property.entity";
 import { Service } from "../../service/entities/service.entity";
 import { PropertyFile } from "./property-file.entity";
 import { IconDescription } from "./icon-description.entity";
+import { Conversation } from "../../messages/conversation/entities/conversation.entity";
+import { PropertyStatus } from "../property-status.enum";
 
 @Entity()
 export class Property {
@@ -68,10 +71,26 @@ export class Property {
     rooms!: number;
 
     @Column({
-        type: 'boolean',
-        default: false,
+        type: 'enum',
+        enum: PropertyStatus,
+        default: PropertyStatus.DRAFT,
     })
-    isActive!: boolean;
+    status!: PropertyStatus;
+
+    @Column({
+        type: 'text',
+        nullable: true,
+    })
+    reviewNote?: string;
+
+    @Column({
+        type: 'timestamp',
+        nullable: true,
+    })
+    reviewedAt?: Date;
+
+    @CreateDateColumn({ type: 'timestamptz' })
+    createdAt!: Date;
 
     // --- Relations ---
 
@@ -90,4 +109,7 @@ export class Property {
 
     @OneToMany(() => IconDescription, (icon) => icon.property, { cascade: true })
     iconDescriptions!: IconDescription[];
+
+    @OneToMany(() => Conversation, (conversation) => conversation.property)
+    conversations!: Conversation[];
 }

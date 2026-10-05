@@ -6,12 +6,13 @@ import type { Server } from 'node:http';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 import { PropertyController } from './property.controller';
 import { PropertyService } from './property.service';
+import { LocationService } from './location.service';
 import { Property } from './entities/property.entity';
 import { PropertyFile } from './entities/property-file.entity';
 import { TypeOfProperty } from './entities/type-of-property.entity';
 import { IconDescription } from './entities/icon-description.entity';
 import { User } from '../user/entities/user.entity';
-import { Service } from '../service/entities/service.entity';
+
 import { ServiceService } from '../service/service.service';
 
 describe('Property search HTTP query', () => {
@@ -21,7 +22,7 @@ describe('Property search HTTP query', () => {
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [PropertyController],
-      providers: [{ provide: PropertyService, useValue: service }],
+      providers: [{ provide: PropertyService, useValue: service }, { provide: LocationService, useValue: { search: jest.fn() } }],
     }).compile();
     app = module.createNestApplication();
     app.useGlobalPipes(
@@ -86,14 +87,7 @@ describe('Property search SQL', () => {
   beforeAll(async () => {
     const source = new DataSource({
       type: 'postgres',
-      entities: [
-        Property,
-        PropertyFile,
-        IconDescription,
-        TypeOfProperty,
-        User,
-        Service,
-      ],
+      entities: [__dirname + '/../**/*.entity.ts'],
     });
     await source['buildMetadatas']();
     const module = await Test.createTestingModule({
@@ -130,7 +124,7 @@ describe('Property search SQL', () => {
     expect(sql).toContain('"property"."isActive" = $3');
     expect(params).toEqual([2, 5, true]);
     expect(sql).toContain('LEFT JOIN "property_file" "files"');
-    expect(sql).not.toContain('"owner"."password"');
+    expect(sql).not.toContain('"owner"');
   });
   it('lists all active properties when filters are cleared', async () => {
     await service.findAll();

@@ -53,16 +53,14 @@ export class CreatePropertyDto {
     })
     typeOfCoin?: string;
 
-    @IsNotEmpty({
-        message: 'The address is required.',
-    })
+    @IsOptional()
     @IsString({
         message: 'The address must be a string.',
     })
     @MaxLength(300, {
         message: 'The address cannot exceed 300 characters.',
     })
-    address!: string;
+    address?: string;
 
     @IsOptional()
     @IsNumber()
@@ -96,14 +94,12 @@ export class CreatePropertyDto {
     @Type(() => Number)
     rooms?: number;
 
-    @IsNotEmpty({
-        message: 'The owner ID is required.',
-    })
+    @IsOptional()
     @IsInt({
         message: 'The owner ID must be an integer.',
     })
     @Type(() => Number)
-    ownerId!: number;
+    ownerId?: number;
 
     @IsOptional()
     @IsInt({
