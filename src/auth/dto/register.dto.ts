@@ -1,8 +1,12 @@
 import { OmitType } from '@nestjs/mapped-types';
-import { IsString, Length, Matches, IsByteLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, Length, Matches, IsByteLength } from 'class-validator';
 import { CreateUserDto } from '../../user/dto/create-user.dto';
 
 export class RegisterDto extends OmitType(CreateUserDto, ['roleId', 'password'] as const) {
+  @IsOptional()
+  @IsIn(['CLIENT', 'OWNER'])
+  accountType?: 'CLIENT' | 'OWNER';
+
   // bcrypt only uses the first 72 bytes of a password.
   @IsString()
   @Length(8, 72)

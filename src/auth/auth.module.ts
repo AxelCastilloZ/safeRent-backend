@@ -6,6 +6,7 @@ import { UserModule } from '../user/user.module';
 import { RoleModule } from '../role/role.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { ResourceAccessGuard } from './guard/resource-access.guard';
 import { RolesGuard } from './guard/roles.guard';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
 
@@ -33,6 +34,7 @@ import { JwtAuthGuard } from './guard/jwt-auth.guard';
     AuthService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: ResourceAccessGuard },
   ],
 })
 export class AuthModule {}

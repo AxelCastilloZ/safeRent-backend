@@ -17,9 +17,10 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
-    const role = await this.roles.findActiveByName(AppRole.CLIENT);
+    const roleName = dto.accountType === 'OWNER' ? AppRole.OWNER : AppRole.CLIENT;
+    const role = await this.roles.findActiveByName(roleName);
     if (!role) {
-      throw new ServiceUnavailableException('El rol CLIENT no está disponible');
+      throw new ServiceUnavailableException(`El rol ${roleName} no está disponible`);
     }
 
     try {

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -40,12 +40,18 @@ export class RoleService {
   }
 
   async update(id: number, updateRoleDto: UpdateRoleDto) {
+    const role = await this.findOne(id);
+    if (['ADMIN', 'OWNER', 'CLIENT'].includes(role.name) &&
+        ((updateRoleDto.name !== undefined && updateRoleDto.name !== role.name) || updateRoleDto.isActive === false)) {
+      throw new BadRequestException('No se puede cambiar el nombre ni desactivar un rol del sistema');
+    }
     await this.roleRepo.update(id, updateRoleDto);
     return await this.findOne(id);
   }
 
   async remove(id: number) {
     const role = await this.findOne(id);
+    if (['ADMIN', 'OWNER', 'CLIENT'].includes(role.name)) throw new BadRequestException('No se puede eliminar un rol del sistema');
     return await this.roleRepo.remove(role);
   }
 }

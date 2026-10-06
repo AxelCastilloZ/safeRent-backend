@@ -1,4 +1,4 @@
-import { Public } from '../auth/access';
+import { AppRole, Public, Roles } from '../auth/access';
 import {
   Controller,
   Get,
@@ -15,6 +15,7 @@ import { ServiceService } from './service.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 
+@Roles(AppRole.ADMIN)
 @Controller(['service'])
 export class ServiceController {
   constructor(private readonly serviceService: ServiceService) {}
