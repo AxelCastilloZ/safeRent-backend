@@ -33,10 +33,10 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Token requerido');
     }
 
-    let payload: { sub: number };
+    let payload: { sub: number; sv?: number };
 
     try {
-      payload = await this.jwt.verifyAsync<{ sub: number }>(match[1]);
+      payload = await this.jwt.verifyAsync<{ sub: number; sv?: number }>(match[1]);
     } catch {
       throw new UnauthorizedException('Token inválido o expirado');
     }
@@ -49,6 +49,11 @@ export class JwtAuthGuard implements CanActivate {
 
     if (!user) {
       throw new UnauthorizedException('Usuario no disponible');
+    }
+
+    // Legacy tokens remain valid only until the account's first password reset.
+    if ((payload.sv ?? 0) !== (user.sessionVersion ?? 0)) {
+      throw new UnauthorizedException('La sesión ha expirado. Inicia sesión nuevamente.');
     }
 
     request.user = {
