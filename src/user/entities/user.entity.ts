@@ -59,6 +59,12 @@ export class User {
     })
     password!: string;
 
+    @Column({ type: 'integer', default: 0, select: false })
+    sessionVersion!: number;
+
+    @Column({ type: 'timestamptz', nullable: true, select: false })
+    passwordChangedAt!: Date | null;
+
     @Column({
         type: 'boolean',
         default: true,

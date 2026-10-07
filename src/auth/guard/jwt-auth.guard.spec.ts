@@ -44,4 +44,11 @@ describe('Authenticated account identity', () => {
     await expect(guard.canActivate(context(request))).rejects.toBeInstanceOf(UnauthorizedException);
     expect(findForAuth).not.toHaveBeenCalled();
   });
+
+  it.each([undefined, 0])('rejects old session version %s after a password reset', async (sv) => {
+    verifyAsync.mockResolvedValue({ sub: 1, sv });
+    findForAuth.mockResolvedValue({ id: 1, sessionVersion: 1 });
+    const request = { headers: { authorization: 'Bearer old-token' } };
+    await expect(guard.canActivate(context(request))).rejects.toBeInstanceOf(UnauthorizedException);
+  });
 });
