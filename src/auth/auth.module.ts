@@ -12,6 +12,7 @@ import { JwtAuthGuard } from './guard/jwt-auth.guard';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MailModule } from '../mail/mail.module';
 import { PasswordRecoveryService } from './password-recovery.service';
+import { ProfileService } from './profile.service';
 import { PasswordRecoveryJob, PasswordRecoveryLimit, PasswordResetToken } from './entities/password-reset-token.entity';
 
 @Module({
@@ -39,6 +40,7 @@ import { PasswordRecoveryJob, PasswordRecoveryLimit, PasswordResetToken } from '
   providers: [
     AuthService,
     PasswordRecoveryService,
+    ProfileService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: ResourceAccessGuard },

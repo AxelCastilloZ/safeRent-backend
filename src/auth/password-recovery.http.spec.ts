@@ -3,6 +3,7 @@ import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { Server } from 'node:http';
 import { AuthController } from './auth.controller';
+import { ProfileService } from './profile.service';
 import { AuthService } from './auth.service';
 import { PasswordRecoveryService, RECOVERY_MESSAGE } from './password-recovery.service';
 
@@ -17,7 +18,7 @@ describe('Recovery HTTP contract', () => {
     recovery.reset.mockResolvedValue({ message: 'Contraseña actualizada correctamente.' });
     const module = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [ { provide: AuthService, useValue: {} }, { provide: PasswordRecoveryService, useValue: recovery } ],
+      providers: [{ provide: ProfileService, useValue: {} }, { provide: AuthService, useValue: {} }, { provide: PasswordRecoveryService, useValue: recovery } ],
     }).compile();
     app = module.createNestApplication();
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
@@ -42,3 +43,4 @@ describe('Recovery HTTP contract', () => {
     expect(recovery.reset).not.toHaveBeenCalled();
   });
 });
+
