@@ -68,7 +68,7 @@ describe('Public landing queries with global authentication guards', () => {
     await request(app.getHttpServer() as Server).post('/properties').send({}).expect(401);
   });
 
-  it.each(['/properties/owner/1'])(
+  it.each(['/properties/owner/1', '/properties/me/reserved'])(
     'keeps private property queries authenticated: %s',
     async (path) => { await request(app.getHttpServer() as Server).get(path).expect(401); },
   );

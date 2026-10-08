@@ -163,6 +163,23 @@ export class PropertyService {
         };
     }
 
+    async findByTenant(tenantId: number) {
+        const properties = await this.propertyRepo.find({
+            where: { reservedTenantId: tenantId },
+            relations: { files: true },
+            order: { reservedAt: 'DESC', id: 'DESC' },
+        });
+        return properties.map((property) => ({
+            id: property.id, title: property.title, description: property.description,
+            address: property.address, cost: property.cost, typeOfCoin: property.typeOfCoin,
+            rooms: property.rooms, guest: property.guest, status: property.status,
+            typeOfProperty: property.typeOfProperty, services: property.services,
+            files: property.files.map(({ path, mimeType }) => ({ path, mimeType })),
+            owner: { id: property.owner.id, name: property.owner.name },
+            reservedAt: property.reservedAt,
+        }));
+    }
+
     async findOne(id: number) {
         const property = await this.propertyRepo.findOne({
             where: { id },

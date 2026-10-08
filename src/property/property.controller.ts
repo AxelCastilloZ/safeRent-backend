@@ -52,6 +52,12 @@ export class PropertyController {
     }
 
     // IMPORTANTE: rutas específicas antes de :id
+    @Roles(AppRole.CLIENT)
+    @Get('me/reserved')
+    findMyReserved(@Req() req: AuthRequest) {
+        return this.propertyService.findByTenant(req.user.id);
+    }
+
     @Public()
     @Get('types')
     findAllTypes() {
