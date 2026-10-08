@@ -92,7 +92,8 @@ export class ConversationService {
   private async findExisting(propertyId: number, participantIds: number[]) {
     const conversations = await this.conversationRepo.find({
       where: { property: { id: propertyId } },
-      relations: { participants: true },
+      // Misma forma que `findOne`: quien llama (conversationView) necesita la propiedad y su dueño.
+      relations: { participants: true, property: true },
     });
 
     return conversations.find((conversation) => {
