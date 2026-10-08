@@ -4,7 +4,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Property } from '../../property/entities/property.entity';
 import { PropertyStatus } from '../../property/property-status.enum';
 import { User } from '../../user/entities/user.entity';
-import { conversationView } from '../message-views';
+import { conversationView, messageView } from '../message-views';
+import { Message } from '../message/entities/message.entity';
 import { ConversationService } from './conversation.service';
 import { Conversation } from './entities/conversation.entity';
 
@@ -24,9 +25,17 @@ describe('ConversationService', () => {
   const conversationRepo = { find: jest.fn(), create: jest.fn(), save: jest.fn() };
   const userRepo = { findBy: jest.fn() };
   const propertyRepo = { findOneBy: jest.fn() };
+  // Constructor de consultas encadenable: cada método devuelve el mismo objeto y el último resuelve el resultado.
+  const queryBuilder: Record<string, jest.Mock> = {};
+  for (const method of ['select', 'addSelect', 'where', 'andWhere', 'groupBy', 'update', 'set']) {
+    queryBuilder[method] = jest.fn(() => queryBuilder);
+  }
+  queryBuilder.getRawMany = jest.fn();
+  queryBuilder.execute = jest.fn();
+  const messageRepo = { createQueryBuilder: jest.fn(() => queryBuilder) };
 
   beforeEach(async () => {
-    jest.resetAllMocks();
+    jest.clearAllMocks();
     propertyRepo.findOneBy.mockResolvedValue(property);
     userRepo.findBy.mockResolvedValue([tenant, owner]);
 
@@ -36,6 +45,7 @@ describe('ConversationService', () => {
         { provide: getRepositoryToken(Conversation), useValue: conversationRepo },
         { provide: getRepositoryToken(User), useValue: userRepo },
         { provide: getRepositoryToken(Property), useValue: propertyRepo },
+        { provide: getRepositoryToken(Message), useValue: messageRepo },
       ],
     }).compile();
 
@@ -84,5 +94,43 @@ describe('ConversationService', () => {
   it('does not let the owner open a chat with themselves', async () => {
     await expect(service.createForUser(property.id, owner.id)).rejects.toBeInstanceOf(BadRequestException);
     expect(conversationRepo.find).not.toHaveBeenCalled();
+  });
+  describe('unread messages', () => {
+    it('counts, per conversation, only what the other person sent and nobody has read', async () => {
+      queryBuilder.getRawMany.mockResolvedValue([{ conversationId: 9, count: '3' }, { conversationId: 12, count: '1' }]);
+
+      const unread = await service.countUnread(tenant.id, [9, 10, 12]);
+
+      expect(unread.get(9)).toBe(3);
+      expect(unread.get(12)).toBe(1);
+      expect(unread.get(10)).toBeUndefined(); // sin pendientes: la bandeja lo muestra como 0
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('"message"."senderId" != :userId', { userId: tenant.id });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('"message"."readAt" IS NULL');
+    });
+
+    it('does not query when the inbox is empty', async () => {
+      expect((await service.countUnread(tenant.id, [])).size).toBe(0);
+      expect(messageRepo.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('marks as read only what the other person sent, and reports how many', async () => {
+      queryBuilder.execute.mockResolvedValue({ affected: 2 });
+
+      await expect(service.markRead(9, tenant.id)).resolves.toEqual({ updated: 2 });
+      expect(queryBuilder.where).toHaveBeenCalledWith('"conversationId" = :conversationId', { conversationId: 9 });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('"senderId" != :userId', { userId: tenant.id });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('"readAt" IS NULL');
+    });
+
+    it('shows readAt in messages and unreadCount only where it is calculated', () => {
+      const sentAt = new Date('2026-10-08T10:00:00Z');
+      const message = { id: 1, message: 'Hola', createdAt: sentAt, readAt: undefined, sender: tenant };
+      expect(messageView(message as never).readAt).toBeNull();
+      expect(messageView({ ...message, readAt: sentAt } as never).readAt).toBe(sentAt);
+
+      const conversation = { id: 9, createdAt: sentAt, participants: [tenant, owner], property };
+      expect(conversationView(conversation as never, 4)).toMatchObject({ unreadCount: 4 });
+      expect(conversationView(conversation as never)).not.toHaveProperty('unreadCount');
+    });
   });
 });
