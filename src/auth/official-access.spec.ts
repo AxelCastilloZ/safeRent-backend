@@ -28,13 +28,14 @@ describe('Official role and resource access', () => {
   const reflector = new Reflector();
   const actors = {
     client: { id: 2, roles: ['CLIENT'] },
+    applicant: { id: 1, roles: ['CLIENT'] },
     owner: { id: 1, roles: ['OWNER'] },
     outsider: { id: 3, roles: ['OWNER'] },
     admin: { id: 4, roles: ['ADMIN'] },
   };
   const property = { id: 5, title: 'Casa', status: 'ACTIVE', ownerId: 1, owner: { id: 1, name: 'Ana' } };
   const conversation = { id: 8, property, participants: [{ id: 1, name: 'Ana' }, { id: 2, name: 'Luis' }] };
-  const properties = { findAll: () => [], findPublic: () => property, findOne: () => property, update: () => property, findByOwner: () => [] };
+  const properties = { create: jest.fn().mockResolvedValue(property), findAll: () => [], findPublic: () => property, findOne: () => property, update: () => property, findByOwner: () => [] };
   const conversations = { findOne: () => conversation, findByParticipant: () => [conversation], createForUser: jest.fn().mockResolvedValue(conversation) };
   const messages = { findByConversation: () => [], create: jest.fn().mockImplementation((_id: number, dto: { message: string; senderId: number }) => ({ id: 9, message: dto.message, sender: { id: dto.senderId } })) };
   const source = { getRepository: (entity: unknown) => entity === Property
@@ -79,6 +80,21 @@ describe('Official role and resource access', () => {
   it('allows public service listing but blocks client changes', async () => {
     await request(app.getHttpServer() as Server).get('/service').expect(200);
     await request(app.getHttpServer() as Server).post('/service').set('x-test-actor', 'client').send({}).expect(403);
+  });
+  it('allows CLIENT to submit a first property and takes ownership from the session', async () => {
+    const payload = { title: 'Casa', description: 'Casa amplia', cost: 500, ownerId: 1 };
+    await request(app.getHttpServer() as Server).post('/properties').send(payload).expect(401);
+    await request(app.getHttpServer() as Server).post('/properties').set('x-test-actor', 'client').send(payload).expect(201);
+    expect(properties.create).toHaveBeenCalledWith(expect.objectContaining({ ownerId: 2 }));
+    await request(app.getHttpServer() as Server).patch('/properties/5/review').set('x-test-actor', 'client').send({ status: 'ACTIVE' }).expect(403);
+  });
+  it('lets CLIENT complete only their own property before approval', async () => {
+    for (const path of ['/properties/5', '/properties/5/files', '/properties/owner/1']) {
+      await request(app.getHttpServer() as Server).get(path).set('x-test-actor', 'client').expect(403);
+    }
+    await request(app.getHttpServer() as Server).get('/properties/5').set('x-test-actor', 'applicant').expect(200);
+    await request(app.getHttpServer() as Server).patch('/properties/5').set('x-test-actor', 'applicant').send({ title: 'Casa' }).expect(200);
+    await request(app.getHttpServer() as Server).get('/properties/owner/1').set('x-test-actor', 'applicant').expect(200);
   });
   it('only allows an owner or administrator to edit the property', async () => {
     for (const actor of ['client', 'outsider']) await request(app.getHttpServer() as Server).patch('/properties/5').set('x-test-actor', actor).send({ title: 'Casa' }).expect(403);

@@ -47,6 +47,10 @@ describe('Registration', () => {
     expect(result).not.toHaveProperty('password');
   });
 
+  it('keeps new accounts as CLIENT even when OWNER is requested', async () => {
+    await service.register({ ...dto, accountType: 'OWNER' });
+    expect(roles.findActiveByName).toHaveBeenCalledWith('CLIENT');
+  });
   it('rejects an existing email or identification', async () => {
     repo.findOne.mockResolvedValue({ id: 4 });
     await expect(service.register(dto)).rejects.toBeInstanceOf(ConflictException);

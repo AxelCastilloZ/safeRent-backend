@@ -70,8 +70,6 @@ export class PropertyService {
 
         const saved = await this.propertyRepo.save(newProperty);
 
-        // La creación requiere OWNER en el controlador; conserva ese rol en la cuenta.
-        await this.userService.ensureRole(owner.id, AppRole.OWNER);
 
         return saved;
     }
@@ -262,6 +260,7 @@ export class PropertyService {
 
         if (dto.status === PropertyStatus.ACTIVE) {
             this.validateReadyForReview(property);
+            await this.userService.ensureRole(property.owner.id, AppRole.OWNER);
         }
 
         property.status = dto.status;
