@@ -64,7 +64,7 @@ export class PropertyController {
         return this.propertyService.findActive(query);
     }
 
-    @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
+    @Public()
     @Get('active/:id')
     findPublic(@Param('id', ParseIntPipe) id: number) {
         return this.propertyService.findPublic(id);
