@@ -13,6 +13,7 @@ dns.setDefaultResultOrder('ipv4first');
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.enableShutdownHooks();
 
   // Only property photos are public. Message attachments require their protected endpoint.
   app.use('/uploads', (req: Request, res: Response, next: NextFunction) => {

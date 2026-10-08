@@ -168,12 +168,14 @@ export class UserService {
     return this.userRepo
       .createQueryBuilder('user')
       .addSelect('user.password')
+      .addSelect('user.sessionVersion')
       .where('user.email = :email', { email })
       .getOne();
   }
 
   findForAuth(id: number) {
     return this.userRepo.findOne({
+      select: { id: true, name: true, surname1: true, email: true, sessionVersion: true },
       where: { id, isActive: true },
       relations: { Roles: true },
     });

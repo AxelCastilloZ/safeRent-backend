@@ -9,9 +9,16 @@ import { AuthController } from './auth.controller';
 import { ResourceAccessGuard } from './guard/resource-access.guard';
 import { RolesGuard } from './guard/roles.guard';
 import { JwtAuthGuard } from './guard/jwt-auth.guard';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { MailModule } from '../mail/mail.module';
+import { PasswordRecoveryService } from './password-recovery.service';
+import { ProfileService } from './profile.service';
+import { PasswordRecoveryJob, PasswordRecoveryLimit, PasswordResetToken } from './entities/password-reset-token.entity';
 
 @Module({
   imports: [
+    MailModule,
+    TypeOrmModule.forFeature([PasswordResetToken, PasswordRecoveryJob, PasswordRecoveryLimit]),
     UserModule,
     RoleModule,
     JwtModule.registerAsync({
@@ -32,6 +39,8 @@ import { JwtAuthGuard } from './guard/jwt-auth.guard';
   controllers: [AuthController],
   providers: [
     AuthService,
+    PasswordRecoveryService,
+    ProfileService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: ResourceAccessGuard },
