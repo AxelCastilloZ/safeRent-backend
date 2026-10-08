@@ -16,7 +16,7 @@ describe('Reservation from a conversation', () => {
         : { findOneBy: jest.fn().mockResolvedValue({ id: 2, name: 'Ana', surname1: 'Pérez', isActive: true }) },
     };
     const service = new ReservationService({ transaction: (work: (m: typeof manager) => unknown) => work(manager) } as unknown as DataSource);
-    return { reserve: () => service.reserve(8, ownerId), property, builder, save };
+    return { reserve: () => service.reserve(8, ownerId), release: () => service.release(5, ownerId), property, builder, save };
   }
 
   it('links the tenant and keeps the approved property active', async () => {
@@ -27,6 +27,19 @@ describe('Reservation from a conversation', () => {
     expect(test.property.status).toBe('ACTIVE');
     expect(test.builder.setLock).toHaveBeenCalledWith('pessimistic_write');
     expect(test.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes the reservation and keeps the property available', async () => {
+    const test = setup(1, 2);
+    await test.release();
+    expect(test.property).toMatchObject({ reservedTenantId: null, reservedTenantName: null, reservedAt: null, reservedTenant: null, status: 'ACTIVE' });
+    expect(test.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let another user release the reservation', async () => {
+    const test = setup(2, 2);
+    await expect(test.release()).rejects.toBeInstanceOf(ForbiddenException);
+    expect(test.save).not.toHaveBeenCalled();
   });
 
   it('does not allow a tenant or another owner to reserve', async () => {

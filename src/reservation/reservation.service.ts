@@ -9,6 +9,23 @@ import { User } from '../user/entities/user.entity';
 export class ReservationService {
   constructor(private readonly dataSource: DataSource) {}
 
+  async release(propertyId: number, ownerId: number) {
+    return this.dataSource.transaction(async (manager) => {
+      const properties = manager.getRepository(Property);
+      const property = await properties.createQueryBuilder('property')
+        .where('property.id = :id', { id: propertyId })
+        .setLock('pessimistic_write').getOne();
+      if (!property) throw new NotFoundException('Propiedad no encontrada');
+      if (property.ownerId !== ownerId) throw new ForbiddenException('Solo el propietario puede quitar la reserva');
+      property.reservedTenantId = null;
+      property.reservedTenantName = null;
+      property.reservedAt = null;
+      property.reservedTenant = null;
+      await properties.save(property);
+      return { propertyId: property.id, reservedTenantId: null, reservedTenantName: null, reservedAt: null };
+    });
+  }
+
   async reserve(conversationId: number, ownerId: number) {
     return this.dataSource.transaction(async (manager) => {
       const conversation = await manager.getRepository(Conversation).findOne({
