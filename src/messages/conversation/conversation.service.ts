@@ -6,6 +6,7 @@ import { Conversation } from './entities/conversation.entity';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { User } from '../../user/entities/user.entity';
 import { Property } from '../../property/entities/property.entity';
+import { Message } from '../message/entities/message.entity';
 
 @Injectable()
 export class ConversationService {
@@ -18,6 +19,9 @@ export class ConversationService {
 
     @InjectRepository(Property)
     private readonly propertyRepo: Repository<Property>,
+
+    @InjectRepository(Message)
+    private readonly messageRepo: Repository<Message>,
   ) {}
 
   async createForUser(propertyId: number, userId: number) {
@@ -74,6 +78,43 @@ export class ConversationService {
       .leftJoinAndSelect('property.services', 'services')
       .orderBy('conversation.createdAt', 'DESC')
       .getMany();
+  }
+
+  /**
+   * Mensajes sin leer de `userId` por conversación: los que envió la otra persona y aún no tienen
+   * `readAt`. Una sola consulta agrupada para toda la bandeja; las conversaciones sin pendientes no aparecen.
+   */
+  async countUnread(userId: number, conversationIds: number[]): Promise<Map<number, number>> {
+    if (conversationIds.length === 0) return new Map();
+
+    const rows = await this.messageRepo
+      .createQueryBuilder('message')
+      .select('"message"."conversationId"', 'conversationId')
+      .addSelect('COUNT(*)', 'count')
+      .where('"message"."conversationId" IN (:...conversationIds)', { conversationIds })
+      .andWhere('"message"."senderId" != :userId', { userId })
+      .andWhere('"message"."readAt" IS NULL')
+      .groupBy('"message"."conversationId"')
+      .getRawMany<{ conversationId: number; count: string }>();
+
+    return new Map(rows.map((row) => [Number(row.conversationId), Number(row.count)]));
+  }
+
+  /**
+   * `userId` abrió la conversación: marca como leídos los mensajes que le envió la otra persona.
+   * Los propios nunca cambian. Devuelve cuántos mensajes se marcaron.
+   */
+  async markRead(conversationId: number, userId: number) {
+    const result = await this.messageRepo
+      .createQueryBuilder()
+      .update(Message)
+      .set({ readAt: new Date() })
+      .where('"conversationId" = :conversationId', { conversationId })
+      .andWhere('"senderId" != :userId', { userId })
+      .andWhere('"readAt" IS NULL')
+      .execute();
+
+    return { updated: result.affected ?? 0 };
   }
 
   async findOne(id: number) {
