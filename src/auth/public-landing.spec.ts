@@ -8,6 +8,7 @@ import type { Server } from 'node:http';
 import request from 'supertest';
 import { PropertyController } from '../property/property.controller';
 import { PropertyService } from '../property/property.service';
+import { LocationService } from '../property/location.service';
 import { ServiceController } from '../service/service.controller';
 import { ServiceService } from '../service/service.service';
 import { UserService } from '../user/user.service';
@@ -23,6 +24,7 @@ describe('Public landing queries with global authentication guards', () => {
     const module = await Test.createTestingModule({
       controllers: [PropertyController, ServiceController],
       providers: [
+        { provide: LocationService, useValue: { search: jest.fn() } },
         { provide: PropertyService, useValue: {
           findAll: jest.fn().mockResolvedValue([{ id: 1, title: 'Publicada' }]),
           findActive: jest.fn().mockResolvedValue([]),
@@ -66,7 +68,7 @@ describe('Public landing queries with global authentication guards', () => {
     await request(app.getHttpServer() as Server).post('/properties').send({}).expect(401);
   });
 
-  it.each(['/properties/owner/1'])(
+  it.each(['/properties/owner/1', '/properties/me/reserved'])(
     'keeps private property queries authenticated: %s',
     async (path) => { await request(app.getHttpServer() as Server).get(path).expect(401); },
   );

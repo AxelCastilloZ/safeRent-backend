@@ -32,13 +32,13 @@ import { LocationService } from './location.service';
 export class PropertyController {
     constructor(private readonly propertyService: PropertyService, private readonly locationService: LocationService) {}
 
-    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @Get('locations/search')
     searchLocations(@Query() query: SearchLocationDto) {
         return this.locationService.search(query.text);
     }
 
-    @Roles(AppRole.OWNER)
+    @Roles(AppRole.CLIENT, AppRole.OWNER)
     @Post()
     create(@Req() req: AuthRequest, @Body() createPropertyDto: CreatePropertyDto) {
         createPropertyDto.ownerId = req.user.id;
@@ -52,6 +52,12 @@ export class PropertyController {
     }
 
     // IMPORTANTE: rutas específicas antes de :id
+    @Roles(AppRole.CLIENT)
+    @Get('me/reserved')
+    findMyReserved(@Req() req: AuthRequest) {
+        return this.propertyService.findByTenant(req.user.id);
+    }
+
     @Public()
     @Get('types')
     findAllTypes() {
@@ -64,13 +70,13 @@ export class PropertyController {
         return this.propertyService.findActive(query);
     }
 
-    @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
+    @Public()
     @Get('active/:id')
     findPublic(@Param('id', ParseIntPipe) id: number) {
         return this.propertyService.findPublic(id);
     }
 
-    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @AccessTo('owner-list')
     @Get('owner/:ownerId')
     findByOwner(@Param('ownerId') ownerId: number) {
@@ -85,14 +91,14 @@ export class PropertyController {
     }
 
     // :id después de las rutas específicas
-    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @AccessTo('property')
     @Get(':id')
     findOne(@Param('id') id: number) {
         return this.propertyService.findOne(id);
     }
 
-    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @AccessTo('property')
     @Patch(':id')
     update(
@@ -102,7 +108,7 @@ export class PropertyController {
         return this.propertyService.update(id, updatePropertyDto);
     }
 
-    @Roles(AppRole.OWNER)
+    @Roles(AppRole.CLIENT, AppRole.OWNER)
     @AccessTo('property')
     @Patch(':id/publish')
     publish(@Param('id') id: number) {
@@ -116,7 +122,7 @@ export class PropertyController {
         return this.propertyService.review(id, reviewPropertyDto);
     }
 
-    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @AccessTo('property')
     @Delete(':id')
     remove(@Param('id') id: number) {
@@ -125,7 +131,7 @@ export class PropertyController {
 
     // --- File endpoints ---
 
-    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @AccessTo('property')
     @Post(':id/files')
     @UseInterceptors(
@@ -163,14 +169,14 @@ export class PropertyController {
         return this.propertyService.saveFiles(id, files);
     }
 
-    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @AccessTo('property')
     @Get(':id/files')
     getFiles(@Param('id') id: number) {
         return this.propertyService.getFiles(id);
     }
 
-    @Roles(AppRole.OWNER, AppRole.ADMIN)
+    @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @AccessTo('property')
     @Delete(':id/files/:fileId')
     removeFile(@Param('id') id: number, @Param('fileId') fileId: number) {

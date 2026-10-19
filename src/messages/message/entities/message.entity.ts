@@ -17,6 +17,11 @@ export class Message {
     @CreateDateColumn()
     createdAt!: Date;
 
+    // Cuándo el otro participante vio el mensaje; vacío = sin leer. Cada conversación tiene
+    // exactamente 2 participantes, así que basta una fecha por mensaje.
+    @Column({ type: 'timestamp', nullable: true })
+    readAt?: Date | null;
+
     // --- Relations ---
 
     @ManyToOne(() => Conversation, (conversation) => conversation.messages, { onDelete: 'CASCADE' })

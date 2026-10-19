@@ -12,6 +12,7 @@ import { CommentModule } from './comment/comment.module';
 import { ReservationModule } from './reservation/reservation.module';
 import { AuthModule } from './auth/auth.module';
 import { PasswordRecovery1791244800000 } from './migrations/1791244800000-password-recovery';
+import { MessageReadAt1791417600000 } from './migrations/1791417600000-message-read-at';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { PasswordRecovery1791244800000 } from './migrations/1791244800000-passwo
       database: process.env.DB_DATABASE,
       autoLoadEntities: true,
       synchronize: process.env.DB_SYNCHRONIZE !== 'false',
-      migrations: [PasswordRecovery1791244800000],
+      migrations: [PasswordRecovery1791244800000, MessageReadAt1791417600000],
       // Development already synchronizes entities; production applies versioned migrations.
       migrationsRun: process.env.DB_SYNCHRONIZE === 'false',
     }),

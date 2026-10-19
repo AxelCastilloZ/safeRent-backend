@@ -112,7 +112,7 @@ export class UserService {
 
   /**
    * Garantiza que el usuario tenga el rol indicado; si ya lo tiene, no hace nada.
-   * PropertyService.create lo utiliza después de comprobar OWNER en el controlador.
+   * PropertyService.review lo utiliza cuando el administrador aprueba una propiedad.
    */
   async ensureRole(id: number, roleName: string): Promise<void> {
     const user = await this.userRepo.findOne({ where: { id }, relations: { Roles: true } });
