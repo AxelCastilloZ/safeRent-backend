@@ -44,6 +44,25 @@ describe('Authenticated profile HTTP contract', () => {
     await request(app.getHttpServer() as Server).get('/auth/profile?id=99').set('Authorization', 'Bearer test').expect(200);
     expect(profile.get).toHaveBeenCalledWith(7);
   });
+  it('protects the country/currency catalog with authentication', async () => {
+    await request(app.getHttpServer() as Server).get('/auth/profile-options').expect(401);
+    const response = await request(app.getHttpServer() as Server).get('/auth/profile-options').set('Authorization', 'Bearer test').expect(200);
+    expect(response.body.countries).toContainEqual({ code: 'CR', name: 'Costa Rica', currency: 'CRC' });
+  });
+  it('accepts normalized country/currency codes and strips derived currency injection', async () => {
+    await request(app.getHttpServer() as Server).patch('/auth/profile').set('Authorization', 'Bearer test').send({ ...validProfile, countryCode: ' cr ', preferredCurrency: ' usd ', resolvedCurrency: 'BTC', currencySource: 'preference' }).expect(200);
+    const [, dto] = profile.update.mock.calls[0];
+    expect(dto.countryCode).toBe('CR'); expect(dto.preferredCurrency).toBe('USD');
+    expect(dto.resolvedCurrency).toBeUndefined(); expect(dto.currencySource).toBeUndefined();
+  });
+  it.each([{ countryCode: 'ZZ' }, { countryCode: '' }, { preferredCurrency: 'BTC' }, { preferredCurrency: 'XAU' }, { preferredCurrency: ['USD'] }])('rejects invalid preferences %j', async (preferences) => {
+    await request(app.getHttpServer() as Server).patch('/auth/profile').set('Authorization', 'Bearer test').send({ ...validProfile, ...preferences }).expect(400);
+    expect(profile.update).not.toHaveBeenCalled();
+  });
+  it('accepts null to restore automatic currency and clear the country', async () => {
+    await request(app.getHttpServer() as Server).patch('/auth/profile').set('Authorization', 'Bearer test').send({ ...validProfile, countryCode: null, preferredCurrency: null }).expect(200);
+    expect(profile.update.mock.calls[0][1]).toMatchObject({ countryCode: null, preferredCurrency: null });
+  });
   it('ignores identity, credentials and role injection in profile updates', async () => {
     await request(app.getHttpServer() as Server).patch('/auth/profile').set('Authorization', 'Bearer test').send({ ...validProfile, id: 99, idCard: 'changed', roleId: 1, isActive: false, password: 'Injected123!' }).expect(200);
     const [id, dto] = profile.update.mock.calls[0];

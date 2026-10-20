@@ -15,6 +15,7 @@ import {
     UploadedFiles,
     BadRequestException,
     ParseIntPipe,
+    Optional,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -27,10 +28,12 @@ import { FindPropertiesAdminDto } from './dto/find-properties-admin.dto';
 import { ReviewPropertyDto } from './dto/review-property.dto';
 import { SearchLocationDto } from './dto/search-location.dto';
 import { LocationService } from './location.service';
+import { PropertyPricingService } from './property-pricing.service';
 
 @Controller('properties')
 export class PropertyController {
-    constructor(private readonly propertyService: PropertyService, private readonly locationService: LocationService) {}
+    constructor(private readonly propertyService: PropertyService, private readonly locationService: LocationService,
+        @Optional() private readonly pricing?: PropertyPricingService) {}
 
     @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @Get('locations/search')
@@ -47,15 +50,27 @@ export class PropertyController {
 
     @Public()
     @Get()
-    findAll(@Query() query: FindPropertiesDto) {
-        return this.propertyService.findAll(query);
+    async findAll(@Query() query: FindPropertiesDto) {
+        return this.pricedList(query, false);
+    }
+
+    private async pricedList(query: FindPropertiesDto, active: boolean) {
+        if (!this.pricing) return active ? this.propertyService.findActive(query) : this.propertyService.findAll(query);
+        const context = await this.pricing.prepare(query);
+        const result = active ? await this.propertyService.findActive(query, context) : await this.propertyService.findAll(query, context);
+        return { ...result, data: await this.pricing.decorate(result.data, context), priceContext: this.pricing.summary(context) };
+    }
+
+    private async priced<T extends { cost: number | string; typeOfCoin: string }>(items: T[], query: FindPropertiesDto) {
+        if (!this.pricing) return items;
+        return this.pricing.decorate(items, await this.pricing.prepare(query));
     }
 
     // IMPORTANTE: rutas específicas antes de :id
     @Roles(AppRole.CLIENT)
     @Get('me/reserved')
-    findMyReserved(@Req() req: AuthRequest) {
-        return this.propertyService.findByTenant(req.user.id);
+    async findMyReserved(@Req() req: AuthRequest, @Query() query: FindPropertiesDto) {
+        return this.priced(await this.propertyService.findByTenant(req.user.id), query);
     }
 
     @Public()
@@ -66,21 +81,21 @@ export class PropertyController {
 
     @Public()
     @Get('active')
-    findActive(@Query() query: FindPropertiesDto) {
-        return this.propertyService.findActive(query);
+    async findActive(@Query() query: FindPropertiesDto) {
+        return this.pricedList(query, true);
     }
 
     @Public()
     @Get('active/:id')
-    findPublic(@Param('id', ParseIntPipe) id: number) {
-        return this.propertyService.findPublic(id);
+    async findPublic(@Param('id', ParseIntPipe) id: number, @Query() query: FindPropertiesDto) {
+        return (await this.priced([await this.propertyService.findPublic(id)], query))[0];
     }
 
     @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @AccessTo('owner-list')
     @Get('owner/:ownerId')
-    findByOwner(@Param('ownerId') ownerId: number) {
-        return this.propertyService.findByOwner(ownerId);
+    async findByOwner(@Param('ownerId') ownerId: number, @Query() query: FindPropertiesDto) {
+        return this.priced(await this.propertyService.findByOwner(ownerId), query);
     }
 
     // Solo administradores: todas las propiedades (cualquier estado) con su propietario.
@@ -94,8 +109,8 @@ export class PropertyController {
     @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @AccessTo('property')
     @Get(':id')
-    findOne(@Param('id') id: number) {
-        return this.propertyService.findOne(id);
+    async findOne(@Param('id') id: number, @Query() query: FindPropertiesDto) {
+        return (await this.priced([await this.propertyService.findOne(id)], query))[0];
     }
 
     @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)

@@ -11,6 +11,10 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../user/entities/user.entity';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { ChangePasswordDto, UpdateProfileDto } from './dto/profile.dto';
+import {
+  resolveProfileCurrency,
+  validateProfileCurrency,
+} from '../currency/profile-currency';
 
 @Injectable()
 export class ProfileService {
@@ -32,6 +36,9 @@ export class ProfileService {
         (role) => role.name,
       ),
       createdAt: user.createdAt,
+      countryCode: user.countryCode ?? null,
+      preferredCurrency: user.preferredCurrency ?? null,
+      ...resolveProfileCurrency(user.countryCode, user.preferredCurrency),
     };
   }
   async get(id: number) {
@@ -58,6 +65,7 @@ export class ProfileService {
       );
   }
   async update(id: number, dto: UpdateProfileDto) {
+    validateProfileCurrency(dto.countryCode, dto.preferredCurrency);
     await this.limit(id);
     try {
       await this.db.transaction(async (manager) => {
@@ -102,6 +110,12 @@ export class ProfileService {
           email: dto.email,
           phoneNumber: dto.phoneNumber,
           birthdate: dto.birthdate,
+          ...(dto.countryCode !== undefined
+            ? { countryCode: dto.countryCode }
+            : {}),
+          ...(dto.preferredCurrency !== undefined
+            ? { preferredCurrency: dto.preferredCurrency }
+            : {}),
         });
       });
     } catch (error) {

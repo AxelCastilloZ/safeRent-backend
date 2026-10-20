@@ -52,6 +52,12 @@ export class User {
     })
     birthdate!: Date;
 
+    @Column({ type: 'varchar', length: 2, nullable: true })
+    countryCode!: string | null;
+
+    @Column({ type: 'varchar', length: 3, nullable: true })
+    preferredCurrency!: string | null;
+
     @Column({
         type: 'varchar',
         length: 255,
