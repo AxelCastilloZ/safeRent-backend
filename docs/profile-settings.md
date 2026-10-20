@@ -6,9 +6,12 @@ La página de Ajustes compartida por cliente, propietario y administrador muestr
 
 Todos requieren JWT válido. El ID se toma exclusivamente de request.user.id; no se recibe un ID de usuario en la ruta ni se acepta desde el formulario.
 
-- GET /auth/profile: id, cédula, nombre, apellidos, correo, teléfono, fecha de nacimiento, roles activos y fecha de registro. Nunca devuelve hash de contraseña ni campos internos de sesión.
+- GET /auth/profile: id, cédula, nombre, apellidos, correo, teléfono, fecha de nacimiento, roles activos y fecha de registro. Incluye countryCode, preferredCurrency, resolvedCurrency y currencySource. Nunca devuelve hash de contraseña ni campos internos de sesión.
 - PATCH /auth/profile: nombre, primer apellido, segundo apellido opcional, correo, teléfono y fecha de nacimiento. El formulario envía todos estos campos. Cédula, roles, estado de cuenta y credenciales no son editables por este endpoint.
 - POST /auth/change-password: currentPassword y password. La confirmación se valida en el frontend y no se envía.
+- GET /auth/profile-options: catálogo local de países/territorios y monedas del formulario.
+
+PATCH /auth/profile también admite countryCode y preferredCurrency opcionales; null borra el valor y omitirlo lo conserva. La preferencia explícita prevalece sobre el país; sin ambos se usa CRC. Ver docs/profile-currency.md para contrato, migración y comprobaciones de esta ampliación.
 
 El cambio de correo requiere currentPassword correcta, comprueba duplicados y revoca los enlaces de recuperación existentes y las solicitudes anteriores encoladas. El nuevo correo se usa para el login y las futuras recuperaciones. No implementa verificación de titularidad del nuevo correo mediante un segundo mensaje.
 
@@ -28,4 +31,4 @@ node scripts/check-profile-db.cjs
 npm test -- --runInBand profile password-recovery brevo-mail register.spec jwt-auth.guard
 ```
 
-Reiniciar el backend para cargar los endpoints. No se necesitan tablas o migraciones adicionales a las del flujo de recuperación ya implementado: utiliza password_recovery_limits, password_reset_tokens, sessionVersion y passwordChangedAt.
+Reiniciar el backend para cargar los endpoints. El flujo de seguridad usa password_recovery_limits, password_reset_tokens, sessionVersion y passwordChangedAt. Las preferencias de país/moneda requieren además la migración ProfileCurrency1792454400002, que agrega dos columnas opcionales en user.

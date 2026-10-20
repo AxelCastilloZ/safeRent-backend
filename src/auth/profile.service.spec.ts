@@ -30,6 +30,29 @@ describe('Self-service account security', () => {
     const fields = manager.update.mock.calls[0][2];
     expect(fields.roleId).toBeUndefined(); expect(fields.idCard).toBeUndefined();
   });
+  it('resolves an existing profile without country/preference to CRC', async () => {
+    const { service } = fixture();
+    expect(await service.get(7)).toMatchObject({ countryCode: null, preferredCurrency: null, resolvedCurrency: 'CRC', currencySource: 'default' });
+  });
+  it('preserves omitted preferences while changing the country', async () => {
+    const { service, user, manager } = fixture();
+    user.countryCode = 'CR'; user.preferredCurrency = 'USD';
+    await service.update(7, { ...dto, countryCode: 'ES' });
+    const values = manager.update.mock.calls[0][2];
+    expect(values.countryCode).toBe('ES');
+    expect(values).not.toHaveProperty('preferredCurrency');
+    expect(await service.get(7)).toMatchObject({ resolvedCurrency: 'USD', currencySource: 'preference' });
+  });
+  it('allows explicitly clearing the preferred currency', async () => {
+    const { service, manager } = fixture();
+    await service.update(7, { ...dto, preferredCurrency: null });
+    expect(manager.update).toHaveBeenCalledWith(User, 7, expect.objectContaining({ preferredCurrency: null }));
+  });
+  it('rejects invalid profile currency before touching the database', async () => {
+    const { service, db } = fixture();
+    await expect(service.update(7, { ...dto, preferredCurrency: 'BTC' })).rejects.toMatchObject({ status: 400 });
+    expect(db.query).not.toHaveBeenCalled();
+  });
   it('requires the current password when changing the recovery email', async () => {
     const { service, manager } = fixture();
     await expect(service.update(7, { ...dto, email: 'other@example.com' })).rejects.toMatchObject({ status: 400 });
