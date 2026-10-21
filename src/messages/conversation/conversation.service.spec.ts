@@ -1,10 +1,10 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Property } from '../../property/entities/property.entity';
 import { PropertyStatus } from '../../property/property-status.enum';
 import { User } from '../../user/entities/user.entity';
-import { conversationView, messageView } from '../message-views';
+import { conversationView, messageView, participantView } from '../message-views';
 import { Message } from '../message/entities/message.entity';
 import { ConversationService } from './conversation.service';
 import { Conversation } from './entities/conversation.entity';
@@ -22,8 +22,16 @@ describe('ConversationService', () => {
   };
 
   let service: ConversationService;
-  const conversationRepo = { find: jest.fn(), create: jest.fn(), save: jest.fn() };
-  const userRepo = { findBy: jest.fn() };
+  // Búsqueda de la conversación directa (administrador ↔ usuario): dos uniones y "propertyId IS NULL".
+  const directQuery = { innerJoin: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(), getOne: jest.fn() };
+  const conversationRepo = {
+    find: jest.fn(),
+    findOne: jest.fn(),
+    create: jest.fn(),
+    save: jest.fn(),
+    createQueryBuilder: jest.fn(() => directQuery),
+  };
+  const userRepo = { findBy: jest.fn(), findOne: jest.fn(), findOneBy: jest.fn() };
   const propertyRepo = { findOneBy: jest.fn() };
   // Constructor de consultas encadenable: cada método devuelve el mismo objeto y el último resuelve el resultado.
   const queryBuilder: Record<string, jest.Mock> = {};
@@ -95,6 +103,66 @@ describe('ConversationService', () => {
     await expect(service.createForUser(property.id, owner.id)).rejects.toBeInstanceOf(BadRequestException);
     expect(conversationRepo.find).not.toHaveBeenCalled();
   });
+  describe('direct conversations (administrador ↔ usuario)', () => {
+    const admin = { id: 99, name: 'Admin', surname1: 'Sistema', Roles: [{ name: 'ADMIN', isActive: true }] };
+    const client = {
+      id: 1, name: 'Ana', surname1: 'Prueba', isActive: true,
+      Roles: [{ name: 'CLIENT', isActive: true }, { name: 'OWNER', isActive: false }],
+    };
+    const createdAt = new Date('2026-10-20T10:00:00Z');
+
+    beforeEach(() => {
+      userRepo.findOne.mockResolvedValue(client);
+      userRepo.findOneBy.mockResolvedValue(admin);
+      directQuery.getOne.mockResolvedValue(null);
+      conversationRepo.create.mockImplementation((data: object) => data);
+      conversationRepo.save.mockImplementation((data: object) => Promise.resolve({ id: 20, ...data }));
+      conversationRepo.findOne.mockResolvedValue({ id: 20, createdAt, participants: [admin, client], property: null });
+    });
+
+    it('creates a conversation without property between the admin and an active user', async () => {
+      const conversation = await service.createDirect(admin.id, client.id);
+
+      expect(conversationRepo.save).toHaveBeenCalledWith({ property: null, participants: [admin, client] });
+      expect(directQuery.where).toHaveBeenCalledWith('"conversation"."propertyId" IS NULL');
+      // Se puede serializar sin propiedad, y los participantes traen solo sus roles activos.
+      expect(conversationView(conversation as unknown as Conversation)).toMatchObject({
+        id: 20,
+        property: null,
+        participants: [{ id: 99, roles: ['ADMIN'] }, { id: 1, roles: ['CLIENT'] }],
+      });
+    });
+
+    it('returns the same conversation when it already exists (no duplicates)', async () => {
+      directQuery.getOne.mockResolvedValue({ id: 20 });
+
+      const conversation = await service.createDirect(admin.id, client.id);
+
+      expect(conversation.id).toBe(20);
+      expect(conversationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects yourself, unknown users, suspended accounts and other admins', async () => {
+      await expect(service.createDirect(admin.id, admin.id)).rejects.toBeInstanceOf(BadRequestException);
+
+      userRepo.findOne.mockResolvedValue(null);
+      await expect(service.createDirect(admin.id, 500)).rejects.toBeInstanceOf(NotFoundException);
+
+      userRepo.findOne.mockResolvedValue({ ...client, isActive: false });
+      await expect(service.createDirect(admin.id, client.id)).rejects.toBeInstanceOf(BadRequestException);
+
+      userRepo.findOne.mockResolvedValue({ ...client, Roles: [{ name: 'ADMIN', isActive: true }] });
+      await expect(service.createDirect(admin.id, client.id)).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(conversationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('shows roles on participants only when they were loaded', () => {
+      expect(participantView(client as never)).toMatchObject({ roles: ['CLIENT'] });
+      expect(participantView({ id: 3, name: 'Luis', surname1: 'Mora' } as never)).not.toHaveProperty('roles');
+    });
+  });
+
   describe('unread messages', () => {
     it('counts, per conversation, only what the other person sent and nobody has read', async () => {
       queryBuilder.getRawMany.mockResolvedValue([{ conversationId: 9, count: '3' }, { conversationId: 12, count: '1' }]);

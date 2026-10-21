@@ -5,8 +5,9 @@ import { AccessTo } from '../../auth/guard/resource-access.guard';
 import { conversationView } from '../message-views';
 import { ConversationService } from './conversation.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
+import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
 
-@Roles(AppRole.CLIENT, AppRole.OWNER)
+@Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
 @Controller('conversations')
 export class ConversationController {
   constructor(private readonly conversationService: ConversationService) {}
@@ -15,6 +16,13 @@ export class ConversationController {
   @Post()
   async create(@Body() dto: CreateConversationDto, @Req() req: AuthRequest) {
     return conversationView(await this.conversationService.createForUser(dto.propertyId, req.user.id));
+  }
+
+  // Solo el administrador inicia conversaciones directas; los usuarios responden desde su bandeja.
+  @Roles(AppRole.ADMIN)
+  @Post('direct')
+  async createDirect(@Body() dto: CreateDirectConversationDto, @Req() req: AuthRequest) {
+    return conversationView(await this.conversationService.createDirect(req.user.id, dto.userId));
   }
 
   @AccessTo('inbox')

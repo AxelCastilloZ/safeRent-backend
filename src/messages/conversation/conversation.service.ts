@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { AppRole } from '../../auth/access';
 import { PropertyStatus } from '../../property/property-status.enum';
 import { Conversation } from './entities/conversation.entity';
 import { CreateConversationDto } from './dto/create-conversation.dto';
@@ -57,6 +58,31 @@ export class ConversationService {
     return await this.conversationRepo.save(newConversation);
   }
 
+  /**
+   * Un administrador inicia (o retoma) una conversación directa con un usuario, sin propiedad de por medio.
+   * Solo a cuentas activas que no sean administradoras. Es idempotente: si ya existe, devuelve esa.
+   */
+  async createDirect(adminId: number, userId: number) {
+    if (userId === adminId) throw new BadRequestException('No puedes iniciar un chat contigo mismo');
+
+    const user = await this.userRepo.findOne({ where: { id: userId }, relations: { Roles: true } });
+    if (!user) throw new NotFoundException(`User with Id ${userId} not found`);
+    if (!user.isActive) throw new BadRequestException('La cuenta del usuario está suspendida');
+    if (user.Roles.some((role) => role.name === AppRole.ADMIN)) {
+      throw new BadRequestException('No puedes iniciar un chat con otro administrador');
+    }
+
+    const existing = await this.findExistingDirect(adminId, userId);
+    if (existing) return this.findOne(existing.id);
+
+    const admin = await this.userRepo.findOneBy({ id: adminId });
+    if (!admin) throw new NotFoundException(`User with Id ${adminId} not found`);
+
+    const saved = await this.conversationRepo.save(this.conversationRepo.create({ property: null, participants: [admin, user] }));
+    // Se vuelve a leer para devolver la misma forma que el resto (participantes con roles).
+    return this.findOne(saved.id);
+  }
+
   async findByParticipant(userId: number) {
     const user = await this.userRepo.findOneBy({ id: userId });
     if (!user) {
@@ -72,6 +98,7 @@ export class ConversationService {
       .createQueryBuilder('conversation')
       .innerJoin('conversation.participants', 'me', 'me.id = :userId', { userId })
       .leftJoinAndSelect('conversation.participants', 'participants')
+      .leftJoinAndSelect('participants.Roles', 'participantRoles')
       .leftJoinAndSelect('conversation.property', 'property')
       .leftJoinAndSelect('property.owner', 'owner')
       .leftJoinAndSelect('property.typeOfProperty', 'typeOfProperty')
@@ -120,7 +147,7 @@ export class ConversationService {
   async findOne(id: number) {
     const conversation = await this.conversationRepo.findOne({
       where: { id },
-      relations: { participants: true, property: true },
+      relations: { participants: { Roles: true }, property: true },
     });
 
     if (!conversation) {
@@ -130,11 +157,21 @@ export class ConversationService {
     return conversation;
   }
 
+  /** Conversación directa (sin propiedad) entre el administrador y el usuario, si ya existe. */
+  private findExistingDirect(adminId: number, userId: number) {
+    return this.conversationRepo
+      .createQueryBuilder('conversation')
+      .innerJoin('conversation.participants', 'admin', 'admin.id = :adminId', { adminId })
+      .innerJoin('conversation.participants', 'member', 'member.id = :userId', { userId })
+      .where('"conversation"."propertyId" IS NULL')
+      .getOne();
+  }
+
   private async findExisting(propertyId: number, participantIds: number[]) {
     const conversations = await this.conversationRepo.find({
       where: { property: { id: propertyId } },
       // Misma forma que `findOne`: quien llama (conversationView) necesita la propiedad y su dueño.
-      relations: { participants: true, property: true },
+      relations: { participants: { Roles: true }, property: true },
     });
 
     return conversations.find((conversation) => {

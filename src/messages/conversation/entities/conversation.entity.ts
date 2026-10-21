@@ -25,8 +25,9 @@ export class Conversation {
     @JoinTable()
     participants!: User[];
 
-    @ManyToOne(() => Property, (property) => property.conversations)
-    property!: Property;
+    // Vacía en las conversaciones directas (administrador ↔ usuario), que no giran en torno a una propiedad.
+    @ManyToOne(() => Property, (property) => property.conversations, { nullable: true })
+    property!: Property | null;
 
     @OneToMany(() => Message, (message) => message.conversation)
     messages!: Message[];
