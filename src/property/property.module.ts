@@ -28,6 +28,7 @@ import { PropertyPricingService } from './property-pricing.service';
     ],
     controllers: [PropertyController],
     providers: [PropertyService, LocationService, PropertyPricingService],
-    exports: [PropertyService],
+    // PropertyPricingService: lo usan otros módulos (p. ej. las guardadas) para mostrar el precio en la moneda del usuario.
+    exports: [PropertyService, PropertyPricingService],
 })
 export class PropertyModule {}
