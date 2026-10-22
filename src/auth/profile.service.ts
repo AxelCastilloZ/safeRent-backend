@@ -1,3 +1,6 @@
+import { Optional } from '@nestjs/common';
+import { DropboxService } from '../dropbox/dropbox.service';
+import { resourceFolder } from '../dropbox/resource-folder';
 import {
   BadRequestException,
   ConflictException,
@@ -18,10 +21,11 @@ import {
 
 @Injectable()
 export class ProfileService {
-  constructor(private readonly db: DataSource) {}
+  constructor(private readonly db: DataSource, @Optional() private readonly dropbox?: DropboxService) {}
   private view(user: User) {
     return {
       id: user.id,
+      profilePhotoUrl: user.profilePhotoUrl ?? null,
       idCard: user.idCard,
       name: user.name,
       surname1: user.surname1,
@@ -48,6 +52,31 @@ export class ProfileService {
     if (!user) throw new NotFoundException('Usuario no disponible.');
     return this.view(user);
   }
+  async photo(id: number, file?: Express.Multer.File) {
+    if (!this.dropbox) throw new BadRequestException('Almacenamiento no disponible.');
+    const storage = this.dropbox;
+    let uploaded: string | undefined;
+    let oldPath: string | null | undefined;
+    try {
+      await this.db.transaction(async manager => {
+        const user = await manager.getRepository(User).createQueryBuilder('user')
+          .addSelect('user.profilePhotoPath').where('user.id = :id AND user.isActive = true', { id })
+          .setLock('pessimistic_write').getOne();
+        if (!user) throw new NotFoundException('Usuario no disponible.');
+        oldPath = user.profilePhotoPath;
+        const fullName = [user.name, user.surname1, user.surname2].filter(Boolean).join(' ');
+        const stored = file ? await storage.upload(file, `Usuarios/${resourceFolder(fullName, user.id, 'usuario')}/Perfil`) : null;
+        uploaded = stored?.path;
+        await manager.update(User, id, { profilePhotoPath: stored?.path ?? null, profilePhotoUrl: stored?.url ?? null });
+      });
+    } catch (error) {
+      if (uploaded) await storage.delete(uploaded).catch(() => undefined);
+      throw error;
+    }
+    if (oldPath) await storage.delete(oldPath).catch(() => undefined);
+    return this.get(id);
+  }
+
   private async limit(id: number) {
     const key = createHash('sha256')
       .update(`account-security:${id}`)

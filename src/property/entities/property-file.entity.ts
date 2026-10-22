@@ -19,6 +19,12 @@ export class PropertyFile {
     })
     path!: string;
 
+    @Column({ type: 'text', nullable: true })
+    url?: string | null;
+
+    @Column({ type: 'varchar', length: 20, default: 'local' })
+    storage!: string;
+
     @Column({
         type: 'varchar',
         length: 255,

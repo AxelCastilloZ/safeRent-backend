@@ -1,3 +1,4 @@
+import { DropboxModule } from '../dropbox/dropbox.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PropertyService } from './property.service';
@@ -15,6 +16,7 @@ import { PropertyPricingService } from './property-pricing.service';
 
 @Module({
     imports: [
+    DropboxModule,
         ServiceModule,
         UserModule,
         CurrencyModule,
