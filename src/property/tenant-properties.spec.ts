@@ -1,3 +1,4 @@
+import { DropboxService } from '../dropbox/dropbox.service';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { PropertyService } from './property.service';
@@ -18,6 +19,8 @@ describe('Tenant reserved properties', () => {
     const module = await Test.createTestingModule({
       providers: [
         PropertyService,
+
+        { provide: DropboxService, useValue: {} },
         { provide: getRepositoryToken(Property), useValue: { find } },
         ...[PropertyFile, IconDescription, TypeOfProperty, User].map((entity) => ({
           provide: getRepositoryToken(entity), useValue: {},

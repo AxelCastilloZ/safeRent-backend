@@ -1,3 +1,4 @@
+import { DropboxService } from '../dropbox/dropbox.service';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -93,6 +94,8 @@ describe('Property search SQL', () => {
     const module = await Test.createTestingModule({
       providers: [
         PropertyService,
+
+        { provide: DropboxService, useValue: {} },
         {
           provide: getRepositoryToken(Property),
           useValue: source.getRepository(Property),

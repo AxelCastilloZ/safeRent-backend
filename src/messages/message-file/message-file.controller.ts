@@ -13,7 +13,7 @@ import {
     BadRequestException,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { uploadOptions } from '../../dropbox/upload-options';
 import { extname } from 'path';
 import { MessageFileService } from './message-file.service';
 
@@ -25,32 +25,7 @@ export class MessageFileController {
     @AccessTo('message')
     @Post()
     @UseInterceptors(
-        FilesInterceptor('files', 10, {
-            storage: diskStorage({
-                destination: './uploads',
-                filename: (_req, file, cb) => {
-                    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-                    const ext = extname(file.originalname);
-                    cb(null, `${uniqueSuffix}${ext}`);
-                },
-            }),
-            fileFilter: (_req, file, cb) => {
-                const allowedMimes = [
-                    'image/jpeg',
-                    'image/png',
-                    'image/webp',
-                    'application/pdf',
-                ];
-                if (allowedMimes.includes(file.mimetype)) {
-                    cb(null, true);
-                } else {
-                    cb(new BadRequestException(`File type ${file.mimetype} is not allowed. Allowed: jpg, png, webp, pdf`), false);
-                }
-            },
-            limits: {
-                fileSize: 10 * 1024 * 1024, // 10MB
-            },
-        }),
+        FilesInterceptor('files', 10, uploadOptions(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])),
     )
     upload(
         @Param('messageId') messageId: number,
