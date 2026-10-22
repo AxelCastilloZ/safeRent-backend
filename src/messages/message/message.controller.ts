@@ -6,7 +6,7 @@ import { messageView } from '../message-views';
 import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 
-@Roles(AppRole.CLIENT, AppRole.OWNER)
+@Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
 @Controller('conversations/:conversationId/messages')
 export class MessageController {
   constructor(private readonly messageService: MessageService) {}

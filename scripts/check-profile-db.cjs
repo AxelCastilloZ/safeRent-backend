@@ -14,8 +14,13 @@ const env=require('dotenv').parse(fs.readFileSync('.env'));
   const wrapped={query:(...args)=>runner.query(...args),getRepository:entity=>runner.manager.getRepository(entity),transaction:async fn=>{await runner.startTransaction();try{const result=await fn(runner.manager);await runner.commitTransaction();return result;}catch(e){await runner.rollbackTransaction();throw e;}}};
   const service=new ProfileService(wrapped);
   const before=await service.get(user.id);assert.equal(before.idCard,initial.idCard);assert(!('password' in before));assert(!('sessionVersion' in before));
+  assert.equal(before.countryCode,null);assert.equal(before.preferredCurrency,null);assert.equal(before.resolvedCurrency,'CRC');assert.equal(before.currencySource,'default');
   const update={name:'Updated',surname1:initial.surname1,surname2:'Second',email:initial.email,phoneNumber:'99999999',birthdate:initial.birthdate};
   const edited=await service.update(user.id,update);assert.equal(edited.name,'Updated');assert.equal(edited.phoneNumber,'99999999');assert.equal(edited.idCard,initial.idCard);
+  const explicit=await service.update(user.id,{...update,countryCode:'CR',preferredCurrency:'USD'});assert.equal(explicit.resolvedCurrency,'USD');assert.equal(explicit.currencySource,'preference');
+  const moved=await service.update(user.id,{...update,countryCode:'ES'});assert.equal(moved.preferredCurrency,'USD');assert.equal(moved.resolvedCurrency,'USD');
+  const automatic=await service.update(user.id,{...update,preferredCurrency:null});assert.equal(automatic.resolvedCurrency,'EUR');assert.equal(automatic.currencySource,'country');
+  const cleared=await service.update(user.id,{...update,countryCode:null});assert.equal(cleared.resolvedCurrency,'CRC');assert.equal(cleared.currencySource,'default');
   await assert.rejects(()=>service.update(user.id,{...update,email:'changed-'+suffix+'@example.invalid'}),e=>e.getStatus?.()===400);
   const confirmed=await service.update(user.id,{...update,email:'changed-'+suffix+'@example.invalid',currentPassword});assert.equal(confirmed.email,'changed-'+suffix+'@example.invalid');
   await assert.rejects(()=>service.changePassword(user.id,{currentPassword:'wrong',password}),e=>e.getStatus?.()===400);
@@ -23,7 +28,7 @@ const env=require('dotenv').parse(fs.readFileSync('.env'));
   const stored=await runner.manager.getRepository(User).createQueryBuilder('user').addSelect('user.password').addSelect('user.sessionVersion').where('user.id=:id',{id:user.id}).getOne();
   assert.equal(await bcrypt.compare(password,stored.password),true);assert.equal(await bcrypt.compare(currentPassword,stored.password),false);assert.equal(stored.sessionVersion,1);
   assert.equal(await runner.manager.countBy(PasswordResetToken,{userId:user.id,usedAt:IsNull()}),0);
-  console.log('PostgreSQL real: vista segura, edición de perfil, cambio de correo protegido, contraseña actual verificada y sesiones/enlaces revocados: correcto.');
+  console.log('PostgreSQL real: país/moneda persistidos, preferencia conservada al cambiar país, retorno a automático/CRC, vista segura y controles de correo/contraseña/sesiones: correcto.');
  }catch(e){console.log('Prueba de perfil falló: '+(e.code??e.name??'error'));process.exitCode=1;}
  finally{if(runner){if(runner.isTransactionActive)await runner.rollbackTransaction();await runner.release();console.log('Cuenta temporal y cambios revertidos; no se modificaron cuentas existentes.');}if(db.isInitialized)await db.destroy();}
 })();

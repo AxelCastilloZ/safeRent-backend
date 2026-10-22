@@ -16,6 +16,8 @@ import { AppRole } from '../auth/access';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as fs from 'fs';
+import type { PropertyPriceContext } from './property-pricing.service';
+import { currencyFractionDigits } from '../currency/currency-metadata';
 
 @Injectable()
 export class PropertyService {
@@ -74,7 +76,7 @@ export class PropertyService {
         return saved;
     }
 
-    async findAll(dto: FindPropertiesDto = {}) {
+    async findAll(dto: FindPropertiesDto = {}, pricing?: PropertyPriceContext) {
         const {
             serviceIds = [],
             typeOfPropertyId,
@@ -97,12 +99,26 @@ export class PropertyService {
             query.andWhere('typeOfProperty.id = :typeOfPropertyId', { typeOfPropertyId });
         }
 
+        let priceExpression = 'property.cost';
+        if (pricing) {
+            const digits = currencyFractionDigits(pricing.currency) ?? 2;
+            if (pricing.snapshot) {
+                query.leftJoin('exchange_rates', 'price_rate', 'price_rate."batchId" = :priceBatchId AND price_rate."currencyCode" = UPPER(property."typeOfCoin")', { priceBatchId: pricing.snapshot.batchId });
+                priceExpression = `ROUND(CASE WHEN UPPER(property."typeOfCoin") = :displayCurrency THEN property.cost ELSE (property.cost * CAST(:targetRate AS numeric))::numeric(100,60) / NULLIF(price_rate.rate, 0) END, ${digits})`;
+                query.setParameter('targetRate', pricing.snapshot.rates[pricing.currency] ?? null);
+            } else {
+                priceExpression = `CASE WHEN UPPER(property."typeOfCoin") = :displayCurrency THEN ROUND(property.cost, ${digits}) ELSE NULL::numeric END`;
+            }
+            query.setParameter('displayCurrency', pricing.currency);
+        }
+        if (dto.sourceCurrency) query.andWhere('UPPER(property."typeOfCoin") = :sourceCurrency', { sourceCurrency: dto.sourceCurrency });
+
         if (minPrice !== undefined) {
-            query.andWhere('property.cost >= :minPrice', { minPrice });
+            query.andWhere(`${priceExpression} >= :minPrice`, { minPrice });
         }
 
         if (maxPrice !== undefined) {
-            query.andWhere('property.cost <= :maxPrice', { maxPrice });
+            query.andWhere(`${priceExpression} <= :maxPrice`, { maxPrice });
         }
 
         if (search) {
@@ -121,8 +137,10 @@ export class PropertyService {
             query.innerJoin('property.services', alias, `${alias}.id = :serviceId${index}`, { [`serviceId${index}`]: id });
         });
 
+        if (pricing && dto.sort && dto.sort !== 'newest') {
+            query.addSelect(priceExpression, 'display_cost').orderBy('display_cost', dto.sort === 'price_asc' ? 'ASC' : 'DESC', 'NULLS LAST').addOrderBy('property.id', 'DESC');
+        } else query.orderBy('property.id', 'DESC');
         const [data, total] = await query
-            .orderBy('property.id', 'DESC')
             .skip((page - 1) * limit)
             .take(limit)
             .getManyAndCount();
@@ -301,8 +319,8 @@ export class PropertyService {
         return await this.propertyRepo.save(property);
     }
 
-    async findActive(query: FindPropertiesDto = {}) {
-        return this.findAll(query);
+    async findActive(query: FindPropertiesDto = {}, pricing?: PropertyPriceContext) {
+        return this.findAll(query, pricing);
     }
 
     /** Listado para el panel de administración: todas las propiedades, con propietario, filtrables por estado. */

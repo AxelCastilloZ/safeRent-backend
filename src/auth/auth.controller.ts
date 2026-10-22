@@ -19,6 +19,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ProfileService } from './profile.service';
 import { ChangePasswordDto, UpdateProfileDto } from './dto/profile.dto';
+import { getProfileCurrencyOptions } from '../currency/profile-currency';
 
 @Controller('auth')
 export class AuthController {
@@ -26,6 +27,9 @@ export class AuthController {
 
   @Get('profile')
   getProfile(@Req() request: AuthRequest) { return this.profile.get(request.user.id); }
+
+  @Get('profile-options')
+  getProfileOptions() { return getProfileCurrencyOptions(); }
 
   @Patch('profile')
   updateProfile(@Req() request: AuthRequest, @Body() dto: UpdateProfileDto) { return this.profile.update(request.user.id, dto); }

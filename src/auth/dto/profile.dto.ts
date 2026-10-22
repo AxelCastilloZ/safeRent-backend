@@ -1,6 +1,10 @@
 import { Transform } from 'class-transformer';
 import { PickType } from '@nestjs/mapped-types';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  PROFILE_COUNTRY_CODES,
+  PROFILE_CURRENCY_CODES,
+} from '../../currency/profile-currency';
 import { CreateUserDto } from '../../user/dto/create-user.dto';
 import { RegisterDto } from './register.dto';
 
@@ -32,6 +36,22 @@ export class UpdateProfileDto extends PickType(CreateUserDto, [
   @IsString()
   @MaxLength(255)
   currentPassword?: string;
+
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsOptional()
+  @IsString()
+  @IsIn(PROFILE_COUNTRY_CODES)
+  countryCode?: string | null;
+
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsOptional()
+  @IsString()
+  @IsIn(PROFILE_CURRENCY_CODES)
+  preferredCurrency?: string | null;
 }
 export class ChangePasswordDto extends PickType(RegisterDto, [
   'password',

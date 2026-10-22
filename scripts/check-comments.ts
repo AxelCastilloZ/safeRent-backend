@@ -17,10 +17,11 @@ async function main() {
     const conversation = await runner.manager.getRepository(Conversation).findOne({
       where: {}, relations: { participants: true, property: true }, order: { id: 'ASC' },
     });
-    if (!conversation?.property) throw new Error('No hay conversación para comprobar');
-    const tenant = conversation.participants.find((user) => user.id !== conversation.property.owner.id);
+    const property = conversation?.property;
+    if (!conversation || !property) throw new Error('No hay conversación para comprobar');
+    const tenant = conversation.participants.find((user) => user.id !== property.owner.id);
     if (!tenant) throw new Error('No hay inquilino para comprobar');
-    const id = conversation.property.id;
+    const id = property.id;
     await runner.query('DELETE FROM property_comment WHERE "propertyId"=$1 AND "authorId"=$2', [id, tenant.id]);
     await runner.query('UPDATE property SET status=$1, "reservedTenantId"=$2 WHERE id=$3', ['ACTIVE', tenant.id, id]);
     const service = new CommentService({
@@ -42,7 +43,7 @@ async function main() {
     await service.moderate(saved.id, admins[0].id, { hidden: false });
     if (!(await service.findByProperty(id)).some((item) => item.id === saved.id)) throw new Error('No se restauró el comentario');
     let blocked = false;
-    try { await service.create(id, conversation.property.owner.id, { content: 'No permitido' }); }
+    try { await service.create(id, property.owner.id, { content: 'No permitido' }); }
     catch { blocked = true; }
     if (!blocked) throw new Error('El propietario pudo comentar');
     console.log('Comentario, relación, permisos y moderación verificados en PostgreSQL. Se revierte toda la prueba.');

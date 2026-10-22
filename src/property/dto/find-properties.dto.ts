@@ -4,12 +4,15 @@ import {
   ArrayUnique,
   IsArray,
   IsInt,
+  IsIn,
+  IsNumber,
   IsOptional,
   IsString,
   Max,
   MaxLength,
   Min,
 } from 'class-validator';
+import { PROFILE_CURRENCY_CODES } from '../../currency/profile-currency';
 
 export class FindPropertiesDto {
   @IsOptional()
@@ -18,15 +21,11 @@ export class FindPropertiesDto {
       return undefined;
     }
 
-    const values = Array.isArray(value) ? value : [value];
+    const values: unknown[] = Array.isArray(value) ? value : [value];
 
     return values
-      .flatMap((item) =>
-        typeof item === 'string' ? item.split(',') : [item],
-      )
-      .map((item) =>
-        typeof item === 'string' ? Number(item.trim()) : item,
-      );
+      .flatMap((item) => (typeof item === 'string' ? item.split(',') : [item]))
+      .map((item) => (typeof item === 'string' ? Number(item.trim()) : item));
   })
   @IsArray()
   @ArrayMaxSize(50)
@@ -44,11 +43,13 @@ export class FindPropertiesDto {
 
   @IsOptional()
   @Min(0)
+  @IsNumber({ allowInfinity: false, allowNaN: false, maxDecimalPlaces: 6 })
   @Type(() => Number)
   minPrice?: number;
 
   @IsOptional()
   @Min(0)
+  @IsNumber({ allowInfinity: false, allowNaN: false, maxDecimalPlaces: 6 })
   @Type(() => Number)
   maxPrice?: number;
 
@@ -76,4 +77,29 @@ export class FindPropertiesDto {
   @Max(100)
   @Type(() => Number)
   limit?: number;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsIn(PROFILE_CURRENCY_CODES)
+  displayCurrency?: string;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsIn(PROFILE_CURRENCY_CODES)
+  sourceCurrency?: string;
+
+  @IsOptional()
+  @IsIn(['newest', 'price_asc', 'price_desc'])
+  sort?: 'newest' | 'price_asc' | 'price_desc';
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  rateBatchId?: number;
 }
