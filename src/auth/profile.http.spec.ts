@@ -18,7 +18,7 @@ jest.mock('../user/user.service', () => ({ UserService: class {} }));
 const validProfile = { name: 'José', surname1: 'Pérez', surname2: '', email: 'jose@example.com', phoneNumber: '88888888', birthdate: '2000-01-01' };
 describe('Authenticated profile HTTP contract', () => {
   let app: INestApplication;
-  const profile = { get: jest.fn(), update: jest.fn(), changePassword: jest.fn() };
+  const profile = { get: jest.fn(), update: jest.fn(), changePassword: jest.fn(), updateLanguage: jest.fn() };
   beforeEach(async () => {
     jest.clearAllMocks();
     profile.get.mockResolvedValue({ id: 7, ...validProfile });
@@ -39,6 +39,20 @@ describe('Authenticated profile HTTP contract', () => {
   it('requires authentication to view the profile', async () => {
     await request(app.getHttpServer() as Server).get('/auth/profile').expect(401);
     expect(profile.get).not.toHaveBeenCalled();
+  });
+  it('requires authentication to change the language', async () => {
+    await request(app.getHttpServer() as Server).patch('/auth/language').send({ preferredLanguage: 'fr' }).expect(401);
+    expect(profile.updateLanguage).not.toHaveBeenCalled();
+  });
+  it.each(['es', 'en', 'fr', 'pt'])('saves language %s only for the authenticated identity', async (preferredLanguage) => {
+    profile.updateLanguage.mockResolvedValue({ preferredLanguage });
+    await request(app.getHttpServer() as Server).patch('/auth/language').set('Authorization', 'Bearer test')
+      .send({ preferredLanguage, id: 99, roles: ['ADMIN'] }).expect(200, { preferredLanguage });
+    expect(profile.updateLanguage).toHaveBeenCalledWith(7, preferredLanguage);
+  });
+  it.each(['de', 'pt-BR', '', null, ['en'], 1, undefined])('rejects invalid language %j', async (preferredLanguage) => {
+    await request(app.getHttpServer() as Server).patch('/auth/language').set('Authorization', 'Bearer test').send({ preferredLanguage }).expect(400);
+    expect(profile.updateLanguage).not.toHaveBeenCalled();
   });
   it('reads only the authenticated identity', async () => {
     await request(app.getHttpServer() as Server).get('/auth/profile?id=99').set('Authorization', 'Bearer test').expect(200);

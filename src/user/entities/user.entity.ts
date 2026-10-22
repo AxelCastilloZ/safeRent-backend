@@ -58,6 +58,9 @@ export class User {
     @Column({ type: 'varchar', length: 3, nullable: true })
     preferredCurrency!: string | null;
 
+    @Column({ type: 'varchar', length: 2, nullable: true })
+    preferredLanguage!: string | null;
+
     @Column({
         type: 'varchar',
         length: 255,

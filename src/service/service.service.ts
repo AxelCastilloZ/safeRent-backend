@@ -28,7 +28,7 @@ export class ServiceService {
   async findOne(id: number): Promise<Service> {
     const service = await this.serviceRepo.findOneBy({ id });
     if (!service)
-      throw new NotFoundException(`Service with Id ${id} not found`);
+      throw new NotFoundException({ code: "API_SERVICE_WITH_ID_NOT_FOUND", message: `Service with Id ${id} not found`, params: { v0: id } });
     return service;
   }
 
@@ -50,7 +50,7 @@ export class ServiceService {
       .getExists();
     if (inUse)
       throw new ConflictException(
-        'This service is assigned to a property and cannot be deleted',
+        { code: "API_THIS_SERVICE_IS_ASSIGNED_TO_A_PROPERTY_AND_CANNOT", message: 'This service is assigned to a property and cannot be deleted', params: {  } },
       );
     try {
       await this.serviceRepo.remove(service);
@@ -58,7 +58,7 @@ export class ServiceService {
       // The foreign key also protects assignments made after the check above.
       if (this.databaseCode(error) === '23503') {
         throw new ConflictException(
-          'This service is assigned to a property and cannot be deleted',
+          { code: "API_THIS_SERVICE_IS_ASSIGNED_TO_A_PROPERTY_AND_CANNOT", message: 'This service is assigned to a property and cannot be deleted', params: {  } },
         );
       }
       throw error;
@@ -72,7 +72,7 @@ export class ServiceService {
     const foundIds = new Set(services.map((service) => service.id));
     const missing = uniqueIds.filter((id) => !foundIds.has(id));
     if (missing.length) {
-      throw new NotFoundException(`Services not found: ${missing.join(', ')}`);
+      throw new NotFoundException({ code: "API_SERVICES_NOT_FOUND", message: `Services not found: ${missing.join(', ')}`, params: { v0: missing.join(', ') } });
     }
     return services;
   }
@@ -82,7 +82,7 @@ export class ServiceService {
       return await this.serviceRepo.save(service);
     } catch (error: unknown) {
       if (this.databaseCode(error) === '23505') {
-        throw new ConflictException('A service with this name already exists');
+        throw new ConflictException({ code: "API_A_SERVICE_WITH_THIS_NAME_ALREADY_EXISTS", message: 'A service with this name already exists', params: {  } });
       }
       throw error;
     }

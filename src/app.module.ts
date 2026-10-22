@@ -19,6 +19,9 @@ import { CurrencyRates1792454400000 } from './migrations/1792454400000-currency-
 import { CurrencyModule } from './currency/currency.module';
 import { CurrencyProviderCodes1792454400001 } from './migrations/1792454400001-currency-provider-codes';
 import { ProfileCurrency1792454400002 } from './migrations/1792454400002-profile-currency';
+import { ProfileLanguage1792627200000 } from './migrations/1792627200000-profile-language';
+import { CatalogI18n1792713600000 } from './migrations/1792713600000-catalog-i18n';
+import { CatalogBootstrap } from './common/catalog-bootstrap';
 
 @Module({
   imports: [
@@ -42,6 +45,8 @@ import { ProfileCurrency1792454400002 } from './migrations/1792454400002-profile
         CurrencyProviderCodes1792454400001,
         ProfileCurrency1792454400002,
         SavedProperty1792540800000,
+        ProfileLanguage1792627200000,
+        CatalogI18n1792713600000,
       ],
       // Development already synchronizes entities; production applies versioned migrations.
       migrationsRun: process.env.DB_SYNCHRONIZE === 'false',
@@ -59,6 +64,6 @@ import { ProfileCurrency1792454400002 } from './migrations/1792454400002-profile
     SavedPropertyModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, CatalogBootstrap],
 })
 export class AppModule {}

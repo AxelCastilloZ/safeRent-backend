@@ -12,7 +12,7 @@ const settings = {
 
 describe('Brevo recovery transport', () => {
   afterEach(() => jest.restoreAllMocks());
-  it('sends the stored recipient and configured frontend link through the template', async () => {
+  it('sends the stored recipient and configured frontend link with localized content', async () => {
     const fetchMock = jest
       .spyOn(global, 'fetch')
       .mockResolvedValue({ ok: true, status: 201 } as Response);
@@ -23,12 +23,12 @@ describe('Brevo recovery transport', () => {
     const payload = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
     expect(payload).toMatchObject({
       to: [{ email: 'account@example.com' }],
-      templateId: 12,
-      params: {
-        RESET_URL: 'http://localhost:5173/reset-password?token=unique_token',
-        EXPIRES_MINUTES: 15,
-      },
+      subject: 'Restablece tu contraseña de SafeRent',
     });
+    expect(payload.htmlContent).toContain('lang="es"');
+    expect(payload.textContent).toContain('http://localhost:5173/reset-password?token=unique_token&lang=es');
+    expect(payload.textContent).toContain('15 minutos');
+    expect(payload).not.toHaveProperty('templateId');
   });
   it.each([429, 500, 503])(
     'retries transient HTTP %i without exposing provider data',
@@ -69,12 +69,23 @@ describe('Brevo recovery transport', () => {
   it.each([
     { FRONTEND_URL: 'http://unsafe.example' },
     { FRONTEND_URL: 'https://safe.example/redirect' },
-    { BREVO_RESET_TEMPLATE_ID: '0' },
     { PASSWORD_RESET_TTL_MINUTES: '100' },
   ])('rejects invalid configuration %o', (override) => {
     expect(
       () =>
         new BrevoMailService(new ConfigService({ ...settings, ...override })),
     ).toThrow();
+  });
+  it.each([
+    ['en', 'Reset your SafeRent password'],
+    ['fr', 'Réinitialisez votre mot de passe SafeRent'],
+    ['pt', 'Redefina sua senha do SafeRent'],
+  ])('localizes the message and recovery link in %s', async (language, subject) => {
+    const mock = jest.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 201 } as Response);
+    await new BrevoMailService(new ConfigService(settings)).sendPasswordReset('a@example.com', 'token', language);
+    const payload = JSON.parse(mock.mock.calls[0][1]!.body as string);
+    expect(payload.subject).toBe(subject);
+    expect(payload.htmlContent).toContain(`lang="${language}"`);
+    expect(payload.textContent).toContain(`&lang=${language}`);
   });
 });

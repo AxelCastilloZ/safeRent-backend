@@ -1,0 +1,10 @@
+{
+  "subject": "Redefina sua senha do SafeRent",
+  "title": "Recupere o acesso à sua conta",
+  "intro": "Recebemos uma solicitação para redefinir sua senha do SafeRent.",
+  "button": "Redefinir senha",
+  "ignore": "Se você não solicitou esta alteração, ignore este e-mail. Sua senha não será alterada.",
+  "footer": "SafeRent · Segurança da conta",
+  "expires_one": "Este link expira em {{minutes}} minuto e só pode ser usado uma vez.",
+  "expires_other": "Este link expira em {{minutes}} minutos e só pode ser usado uma vez."
+}

@@ -1,0 +1,10 @@
+{
+  "subject": "Restablece tu contraseña de SafeRent",
+  "title": "Recupera el acceso a tu cuenta",
+  "intro": "Recibimos una solicitud para restablecer tu contraseña de SafeRent.",
+  "button": "Restablecer contraseña",
+  "ignore": "Si no solicitaste este cambio, ignora este correo. Tu contraseña no cambiará.",
+  "footer": "SafeRent · Seguridad de tu cuenta",
+  "expires_one": "Este enlace vence en {{minutes}} minuto y solo puede utilizarse una vez.",
+  "expires_other": "Este enlace vence en {{minutes}} minutos y solo puede utilizarse una vez."
+}
