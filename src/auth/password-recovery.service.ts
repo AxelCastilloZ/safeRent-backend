@@ -27,6 +27,7 @@ import {
   PasswordResetToken,
 } from './entities/password-reset-token.entity';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { requestLanguage } from '../common/language';
 
 export const RECOVERY_MESSAGE =
   'Si los datos corresponden a una cuenta activa, recibirás un enlace para cambiar tu contraseña.';
@@ -115,7 +116,7 @@ export class PasswordRecoveryService implements OnModuleInit, OnModuleDestroy {
     return rows[0].count <= maximum;
   }
 
-  async request(identifier: string, ip: string) {
+  async request(identifier: string, ip: string, language?: string) {
     const accepted = await this.db.transaction(async (manager) => {
       const ipAllowed = await this.limit(manager, 'forgot-ip', ip, 10);
       if (!ipAllowed) return false;
@@ -127,14 +128,14 @@ export class PasswordRecoveryService implements OnModuleInit, OnModuleDestroy {
       );
       if (!idAllowed) return false;
       await manager.save(PasswordRecoveryJob, {
-        payload: this.encrypt(identifier),
+        payload: this.encrypt(JSON.stringify({ identifier, language: requestLanguage(language) })),
         availableAt: new Date(),
       });
       return true;
     });
     if (!accepted)
       throw new HttpException(
-        'Demasiadas solicitudes. Intenta nuevamente en 15 minutos.',
+        { code: "API_DEMASIADAS_SOLICITUDES_INTENTA_NUEVAMENTE_EN_15_MINUTOS", message: 'Demasiadas solicitudes. Intenta nuevamente en 15 minutos.', params: {  } },
         HttpStatus.TOO_MANY_REQUESTS,
       );
     return { message: RECOVERY_MESSAGE };
@@ -146,7 +147,7 @@ export class PasswordRecoveryService implements OnModuleInit, OnModuleDestroy {
     );
     if (!allowed)
       throw new HttpException(
-        'Demasiados intentos. Intenta nuevamente en 15 minutos.',
+        { code: "TOO_MANY_ATTEMPTS", message: "Demasiados intentos. Intenta nuevamente en 15 minutos." },
         HttpStatus.TOO_MANY_REQUESTS,
       );
     const tokenHash = createHash('sha256').update(dto.token).digest('hex');
@@ -154,7 +155,7 @@ export class PasswordRecoveryService implements OnModuleInit, OnModuleDestroy {
       const reference = await manager.findOneBy(PasswordResetToken, {
         tokenHash,
       });
-      if (!reference) throw new BadRequestException(INVALID_LINK);
+      if (!reference) throw new BadRequestException({ code: 'RESET_LINK_INVALID', message: INVALID_LINK });
       // Always lock user before token: serializes resets and issuance for the same account.
       const user = await manager.findOne(User, {
         select: { id: true, isActive: true, sessionVersion: true },
@@ -171,7 +172,7 @@ export class PasswordRecoveryService implements OnModuleInit, OnModuleDestroy {
         token.usedAt ||
         token.expiresAt.getTime() <= Date.now()
       )
-        throw new BadRequestException(INVALID_LINK);
+        throw new BadRequestException({ code: 'RESET_LINK_INVALID', message: INVALID_LINK });
       const password = await bcrypt.hash(dto.password, 10);
       await manager.update(User, user.id, {
         password,
@@ -201,8 +202,15 @@ export class PasswordRecoveryService implements OnModuleInit, OnModuleDestroy {
       if (!job) return;
       try {
         let identifier: string;
+        let language = 'es';
         try {
-          identifier = this.decrypt(job.payload);
+          const decrypted = this.decrypt(job.payload);
+          if (decrypted.startsWith('{"identifier":')) {
+            const payload = JSON.parse(decrypted) as { identifier: unknown; language?: string };
+            if (typeof payload.identifier !== 'string') throw new Error('Invalid recovery payload');
+            identifier = payload.identifier;
+            language = requestLanguage(payload.language);
+          } else identifier = decrypted; // Jobs queued before localization remain valid.
         } catch {
           this.logger.error(
             'Trabajo de recuperación no descifrable; revisa la clave de cifrado.',
@@ -241,7 +249,7 @@ export class PasswordRecoveryService implements OnModuleInit, OnModuleDestroy {
         }
         const token = randomBytes(32).toString('base64url');
         // Email is submitted before persisting its hash; errors cannot leave a usable unsent token.
-        await this.mail.sendPasswordReset(user.email, token);
+        await this.mail.sendPasswordReset(user.email, token, user.preferredLanguage ?? language);
         await tokens.save({
           userId: user.id,
           tokenHash: createHash('sha256').update(token).digest('hex'),

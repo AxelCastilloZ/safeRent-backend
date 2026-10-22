@@ -12,7 +12,7 @@ export class CommentService {
 
   async findByProperty(propertyId: number) {
     const property = await this.dataSource.getRepository(Property).findOneBy({ id: propertyId, status: PropertyStatus.ACTIVE });
-    if (!property) throw new NotFoundException('Propiedad no disponible');
+    if (!property) throw new NotFoundException({ code: "API_PROPIEDAD_NO_DISPONIBLE", message: 'Propiedad no disponible', params: {  } });
     const comments = await this.dataSource.getRepository(PropertyComment).find({
       where: { property: { id: propertyId }, hidden: false },
       relations: { author: true },
@@ -50,14 +50,14 @@ export class CommentService {
   }
 
   async moderate(id: number, adminId: number, dto: ModerateCommentDto) {
-    if (dto.hidden && !dto.note?.trim()) throw new BadRequestException('Escribe el motivo para ocultar el comentario');
+    if (dto.hidden && !dto.note?.trim()) throw new BadRequestException({ code: "API_ESCRIBE_EL_MOTIVO_PARA_OCULTAR_EL_COMENTARIO", message: 'Escribe el motivo para ocultar el comentario', params: {  } });
     const result = await this.dataSource.getRepository(PropertyComment).update(id, {
       hidden: dto.hidden,
       moderationNote: dto.hidden ? dto.note!.trim() : null,
       moderatedAt: new Date(),
       moderatedById: adminId,
     });
-    if (!result.affected) throw new NotFoundException('Comentario no encontrado');
+    if (!result.affected) throw new NotFoundException({ code: "API_COMENTARIO_NO_ENCONTRADO", message: 'Comentario no encontrado', params: {  } });
     return { id, hidden: dto.hidden };
   }
 
@@ -67,20 +67,20 @@ export class CommentService {
         const property = await manager.getRepository(Property).createQueryBuilder('property')
           .where('property.id = :id', { id: propertyId })
           .setLock('pessimistic_write').getOne();
-        if (!property) throw new NotFoundException('Propiedad no encontrada');
+        if (!property) throw new NotFoundException({ code: "API_PROPIEDAD_NO_ENCONTRADA", message: 'Propiedad no encontrada', params: {  } });
         if (property.reservedTenantId !== userId || property.ownerId === userId) {
-          throw new ForbiddenException('Solo el inquilino vinculado a esta propiedad puede comentar');
+          throw new ForbiddenException({ code: "API_SOLO_EL_INQUILINO_VINCULADO_A_ESTA_PROPIEDAD_PUEDE_COMENTAR", message: 'Solo el inquilino vinculado a esta propiedad puede comentar', params: {  } });
         }
         const comments = manager.getRepository(PropertyComment);
         const existing = await comments.findOneBy({ property: { id: propertyId }, author: { id: userId } });
-        if (existing) throw new ConflictException('Ya comentaste esta propiedad');
+        if (existing) throw new ConflictException({ code: "API_YA_COMENTASTE_ESTA_PROPIEDAD", message: 'Ya comentaste esta propiedad', params: {  } });
         const comment = comments.create({ content: dto.content, property: { id: propertyId }, author: { id: userId } });
         const saved = await comments.save(comment);
         return { id: saved.id, content: saved.content, createdAt: saved.createdAt };
       });
     } catch (error) {
       if (error instanceof QueryFailedError && (error.driverError as { code?: string }).code === '23505') {
-        throw new ConflictException('Ya comentaste esta propiedad');
+        throw new ConflictException({ code: "API_YA_COMENTASTE_ESTA_PROPIEDAD", message: 'Ya comentaste esta propiedad', params: {  } });
       }
       throw error;
     }

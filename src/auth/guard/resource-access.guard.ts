@@ -21,20 +21,20 @@ export class ResourceAccessGuard implements CanActivate {
     const user = req.user;
     const resourceId = (value: unknown) => {
       const id = Number(value);
-      if (!Number.isSafeInteger(id) || id <= 0) throw new BadRequestException('Identificador inválido');
+      if (!Number.isSafeInteger(id) || id <= 0) throw new BadRequestException({ code: "API_IDENTIFICADOR_INVALIDO", message: 'Identificador inválido', params: {  } });
       return id;
     };
     if (resource === 'owner-list' || resource === 'inbox') {
       const id = resourceId(req.params[resource === 'inbox' ? 'userId' : 'ownerId']);
       if (id !== user.id && !(resource === 'owner-list' && user.roles.includes('ADMIN'))) {
-        throw new ForbiddenException('No puedes consultar los datos de otro usuario');
+        throw new ForbiddenException({ code: "API_NO_PUEDES_CONSULTAR_LOS_DATOS_DE_OTRO_USUARIO", message: 'No puedes consultar los datos de otro usuario', params: {  } });
       }
       return true;
     }
     if (resource === 'property') {
       const property = await this.source.getRepository(Property).findOneBy({ id: resourceId(req.params.id) });
-      if (!property) throw new NotFoundException('Propiedad no encontrada');
-      if (property.ownerId !== user.id && !user.roles.includes('ADMIN')) throw new ForbiddenException('Esta propiedad no te pertenece');
+      if (!property) throw new NotFoundException({ code: "API_PROPIEDAD_NO_ENCONTRADA", message: 'Propiedad no encontrada', params: {  } });
+      if (property.ownerId !== user.id && !user.roles.includes('ADMIN')) throw new ForbiddenException({ code: "API_ESTA_PROPIEDAD_NO_TE_PERTENECE", message: 'Esta propiedad no te pertenece', params: {  } });
       return true;
     }
     let conversationId = resource === 'message' ? 0 : resourceId(req.params.conversationId ?? req.params.id);
@@ -42,15 +42,15 @@ export class ResourceAccessGuard implements CanActivate {
       const message = await this.source.getRepository(Message).findOne({
         where: { id: resourceId(req.params.messageId) }, relations: { sender: true, conversation: true },
       });
-      if (!message) throw new NotFoundException('Mensaje no encontrado');
-      if (req.method !== 'GET' && message.sender.id !== user.id) throw new ForbiddenException('Solo el remitente puede modificar los adjuntos');
+      if (!message) throw new NotFoundException({ code: "API_MENSAJE_NO_ENCONTRADO", message: 'Mensaje no encontrado', params: {  } });
+      if (req.method !== 'GET' && message.sender.id !== user.id) throw new ForbiddenException({ code: "API_SOLO_EL_REMITENTE_PUEDE_MODIFICAR_LOS_ADJUNTOS", message: 'Solo el remitente puede modificar los adjuntos', params: {  } });
       conversationId = message.conversation.id;
     }
     const conversation = await this.source.getRepository(Conversation).findOne({
       where: { id: conversationId }, relations: { participants: true },
     });
-    if (!conversation) throw new NotFoundException('Conversación no encontrada');
-    if (!conversation.participants.some((participant) => participant.id === user.id)) throw new ForbiddenException('No participas en esta conversación');
+    if (!conversation) throw new NotFoundException({ code: "API_CONVERSACION_NO_ENCONTRADA", message: 'Conversación no encontrada', params: {  } });
+    if (!conversation.participants.some((participant) => participant.id === user.id)) throw new ForbiddenException({ code: "API_NO_PARTICIPAS_EN_ESTA_CONVERSACION", message: 'No participas en esta conversación', params: {  } });
     return true;
   }
 }

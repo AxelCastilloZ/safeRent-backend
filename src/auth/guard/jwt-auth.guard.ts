@@ -30,7 +30,7 @@ export class JwtAuthGuard implements CanActivate {
       ?.match(/^Bearer ([^\s]+)$/i);
 
     if (!match) {
-      throw new UnauthorizedException('Token requerido');
+      throw new UnauthorizedException({ code: "API_TOKEN_REQUERIDO", message: 'Token requerido', params: {  } });
     }
 
     let payload: { sub: number; sv?: number };
@@ -38,22 +38,22 @@ export class JwtAuthGuard implements CanActivate {
     try {
       payload = await this.jwt.verifyAsync<{ sub: number; sv?: number }>(match[1]);
     } catch {
-      throw new UnauthorizedException('Token inválido o expirado');
+      throw new UnauthorizedException({ code: "API_TOKEN_INVALIDO_O_EXPIRADO", message: 'Token inválido o expirado', params: {  } });
     }
 
     if (!Number.isInteger(payload.sub) || payload.sub <= 0) {
-      throw new UnauthorizedException('Token inválido');
+      throw new UnauthorizedException({ code: "API_TOKEN_INVALIDO", message: 'Token inválido', params: {  } });
     }
 
     const user = await this.users.findForAuth(payload.sub);
 
     if (!user) {
-      throw new UnauthorizedException('Usuario no disponible');
+      throw new UnauthorizedException({ code: "API_USUARIO_NO_DISPONIBLE", message: 'Usuario no disponible', params: {  } });
     }
 
     // Legacy tokens remain valid only until the account's first password reset.
     if ((payload.sv ?? 0) !== (user.sessionVersion ?? 0)) {
-      throw new UnauthorizedException('La sesión ha expirado. Inicia sesión nuevamente.');
+      throw new UnauthorizedException({ code: "API_LA_SESION_HA_EXPIRADO_INICIA_SESION_NUEVAMENTE", message: 'La sesión ha expirado. Inicia sesión nuevamente.', params: {  } });
     }
 
     request.user = {

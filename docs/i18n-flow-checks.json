@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-22",
+  "method": "Real local HTTP/JWT/guards/PostgreSQL; outer transaction rolled back",
+  "checks": [
+    {
+      "language": "es",
+      "requests": 54,
+      "passed": true,
+      "propertyId": 42,
+      "conversationId": 13
+    },
+    {
+      "language": "en",
+      "requests": 54,
+      "passed": true,
+      "propertyId": 43,
+      "conversationId": 15
+    },
+    {
+      "language": "fr",
+      "requests": 54,
+      "passed": true,
+      "propertyId": 44,
+      "conversationId": 16
+    },
+    {
+      "language": "pt",
+      "requests": 54,
+      "passed": true,
+      "propertyId": 45,
+      "conversationId": 17
+    }
+  ],
+  "scope": [
+    "profile",
+    "draft/publish/review",
+    "public/private access",
+    "conversations/messages/read",
+    "attachments/download/access/type",
+    "reserve/release",
+    "saved properties",
+    "comment/moderation",
+    "direct conversations"
+  ],
+  "limitations": [
+    "Does not emulate browser rendering or external mail/address providers",
+    "Physical devices and editorial group review remain external checks"
+  ]
+}

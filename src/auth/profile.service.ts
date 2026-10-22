@@ -11,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../user/entities/user.entity';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { ChangePasswordDto, UpdateProfileDto } from './dto/profile.dto';
+import { SUPPORTED_LANGUAGES, type SupportedLanguage } from './dto/language.dto';
 import {
   resolveProfileCurrency,
   validateProfileCurrency,
@@ -21,7 +22,8 @@ export class ProfileService {
   constructor(private readonly db: DataSource) {}
   private view(user: User) {
     return {
-      id: user.id,      idCard: user.idCard,
+      id: user.id,
+      idCard: user.idCard,
       name: user.name,
       surname1: user.surname1,
       surname2: user.surname2 ?? '',
@@ -37,6 +39,7 @@ export class ProfileService {
       createdAt: user.createdAt,
       countryCode: user.countryCode ?? null,
       preferredCurrency: user.preferredCurrency ?? null,
+      preferredLanguage: user.preferredLanguage ?? null,
       ...resolveProfileCurrency(user.countryCode, user.preferredCurrency),
     };
   }
@@ -44,8 +47,19 @@ export class ProfileService {
     const user = await this.db
       .getRepository(User)
       .findOne({ where: { id, isActive: true }, relations: { Roles: true } });
-    if (!user) throw new NotFoundException('Usuario no disponible.');
+    if (!user) throw new NotFoundException({ code: "USER_UNAVAILABLE", message: "Usuario no disponible." });
     return this.view(user);
+  }
+  async updateLanguage(id: number, preferredLanguage: SupportedLanguage) {
+    if (!SUPPORTED_LANGUAGES.includes(preferredLanguage)) {
+      throw new BadRequestException({ code: 'LANGUAGE_UNSUPPORTED', message: 'Idioma no admitido.' });
+    }
+    const result = await this.db.getRepository(User).update(
+      { id, isActive: true },
+      { preferredLanguage },
+    );
+    if (!result.affected) throw new NotFoundException({ code: "USER_UNAVAILABLE", message: "Usuario no disponible." });
+    return { preferredLanguage };
   }
   private async limit(id: number) {
     const key = createHash('sha256')
@@ -59,7 +73,7 @@ export class ProfileService {
     );
     if (rows[0].count > 10)
       throw new HttpException(
-        'Demasiados intentos. Intenta nuevamente en 15 minutos.',
+        { code: "TOO_MANY_ATTEMPTS", message: "Demasiados intentos. Intenta nuevamente en 15 minutos." },
         429,
       );
   }
@@ -75,14 +89,14 @@ export class ProfileService {
           .where('user.id = :id AND user.isActive = true', { id })
           .setLock('pessimistic_write')
           .getOne();
-        if (!user) throw new NotFoundException('Usuario no disponible.');
+        if (!user) throw new NotFoundException({ code: "USER_UNAVAILABLE", message: "Usuario no disponible." });
         if (dto.email !== user.email) {
           if (
             !dto.currentPassword ||
             !(await bcrypt.compare(dto.currentPassword, user.password))
           )
             throw new BadRequestException(
-              'Para cambiar el correo, indica tu contraseña actual correcta.',
+              { code: "EMAIL_PASSWORD_REQUIRED", message: "Para cambiar el correo, indica tu contraseña actual correcta." },
             );
           const duplicate = await manager
             .getRepository(User)
@@ -93,7 +107,7 @@ export class ProfileService {
             })
             .getOne();
           if (duplicate)
-            throw new ConflictException('El correo ya está registrado.');
+            throw new ConflictException({ code: "EMAIL_REGISTERED", message: "El correo ya está registrado." });
           await manager.update(
             PasswordResetToken,
             { userId: id, usedAt: IsNull() },
@@ -122,7 +136,7 @@ export class ProfileService {
         error instanceof QueryFailedError &&
         (error.driverError as { code?: string }).code === '23505'
       )
-        throw new ConflictException('El correo ya está registrado.');
+        throw new ConflictException({ code: "EMAIL_REGISTERED", message: "El correo ya está registrado." });
       throw error;
     }
     return this.get(id);
@@ -138,12 +152,12 @@ export class ProfileService {
         .where('user.id = :id AND user.isActive = true', { id })
         .setLock('pessimistic_write')
         .getOne();
-      if (!user) throw new NotFoundException('Usuario no disponible.');
+      if (!user) throw new NotFoundException({ code: "USER_UNAVAILABLE", message: "Usuario no disponible." });
       if (!(await bcrypt.compare(dto.currentPassword, user.password)))
-        throw new BadRequestException('La contraseña actual es incorrecta.');
+        throw new BadRequestException({ code: "CURRENT_PASSWORD_INVALID", message: "La contraseña actual es incorrecta." });
       if (await bcrypt.compare(dto.password, user.password))
         throw new BadRequestException(
-          'La nueva contraseña debe ser diferente de la actual.',
+          { code: "PASSWORD_UNCHANGED", message: "La nueva contraseña debe ser diferente de la actual." },
         );
       await manager.update(User, id, {
         password: await bcrypt.hash(dto.password, 10),

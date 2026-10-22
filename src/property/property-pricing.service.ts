@@ -22,13 +22,13 @@ export class PropertyPricingService {
   async prepare(query: FindPropertiesDto = {}): Promise<PropertyPriceContext> {
     const currency = query.displayCurrency ?? 'CRC';
     if (!PROFILE_CURRENCY_CODES.includes(currency))
-      throw new BadRequestException('Moneda de visualización inválida.');
+      throw new BadRequestException({ code: "API_MONEDA_DE_VISUALIZACION_INVALIDA", message: 'Moneda de visualización inválida.', params: {  } });
     if (
       query.minPrice !== undefined &&
       query.maxPrice !== undefined &&
       query.minPrice > query.maxPrice
     )
-      throw new BadRequestException('El mínimo no puede superar el máximo.');
+      throw new BadRequestException({ code: "API_EL_MINIMO_NO_PUEDE_SUPERAR_EL_MAXIMO", message: 'El mínimo no puede superar el máximo.', params: {  } });
     let snapshot: RateSnapshot | null;
     try {
       snapshot =
@@ -40,7 +40,7 @@ export class PropertyPricingService {
     }
     if (query.rateBatchId !== undefined && query.rateBatchId !== 0 && !snapshot)
       throw new BadRequestException(
-        'El lote de tasas solicitado no está disponible.',
+        { code: "API_EL_LOTE_DE_TASAS_SOLICITADO_NO_ESTA_DISPONIBLE", message: 'El lote de tasas solicitado no está disponible.', params: {  } },
       );
     return { currency, snapshot };
   }

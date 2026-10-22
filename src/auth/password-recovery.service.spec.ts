@@ -74,6 +74,16 @@ function setup() {
 }
 
 describe('Password recovery lifecycle', () => {
+  it.each([
+    [null, 'fr', 'fr'], ['pt', 'fr', 'pt'], [null, 'en-US', 'en'],
+  ])('preserves request language and gives account preference priority', async (preferredLanguage, requestedLanguage, expected) => {
+    const { service, manager, query, userQuery, mail } = setup();
+    await service.request('a@example.com', 'ip', requestedLanguage);
+    query.getOne.mockResolvedValue({ id: 5, ...manager.save.mock.calls[0][1], createdAt: new Date() });
+    userQuery.getOne.mockResolvedValue({ id: 1, email: 'stored@example.com', preferredLanguage });
+    await service.processQueue();
+    expect(mail.sendPasswordReset).toHaveBeenCalledWith('stored@example.com', expect.any(String), expected);
+  });
   it('queues encrypted identifiers and returns a non-enumerating response', async () => {
     const { service, manager } = setup();
     await expect(service.request('001234567', '127.0.0.1')).resolves.toEqual({

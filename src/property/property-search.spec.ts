@@ -15,6 +15,8 @@ import { IconDescription } from './entities/icon-description.entity';
 import { User } from '../user/entities/user.entity';
 
 import { ServiceService } from '../service/service.service';
+import { UserService } from '../user/user.service';
+import { PropertyStatus } from './property-status.enum';
 
 describe('Property search HTTP query', () => {
   let app: INestApplication;
@@ -101,6 +103,7 @@ describe('Property search SQL', () => {
           useValue: source.getRepository(Property),
         },
         { provide: ServiceService, useValue: {} },
+        { provide: UserService, useValue: {} },
         ...[TypeOfProperty, User, PropertyFile, IconDescription].map(
           (entity) => ({ provide: getRepositoryToken(entity), useValue: {} }),
         ),
@@ -110,13 +113,15 @@ describe('Property search SQL', () => {
   });
   beforeEach(() => {
     getMany = jest
-      .spyOn(SelectQueryBuilder.prototype, 'getMany')
-      .mockResolvedValue([]);
+      .spyOn(SelectQueryBuilder.prototype, 'getManyAndCount')
+      .mockResolvedValue([[], 0]);
   });
   afterEach(() => jest.restoreAllMocks());
 
   it('requires all selected services and still loads the complete services relation', async () => {
-    await expect(service.findAll({ serviceIds: [2, 5] })).resolves.toEqual([]);
+    await expect(service.findAll({ serviceIds: [2, 5] })).resolves.toEqual({
+      data: [], total: 0, page: 1, limit: 20, totalPages: 0,
+    });
     const builder = getMany.mock.contexts[0] as SelectQueryBuilder<Property>;
     const [sql, params] = builder.getQueryAndParameters();
     expect(sql).toContain('LEFT JOIN "service" "services"');
@@ -124,8 +129,8 @@ describe('Property search SQL', () => {
     expect(sql).toContain('INNER JOIN "service" "selectedService1"');
     expect(sql).toContain('"selectedService0"."id" = $1');
     expect(sql).toContain('"selectedService1"."id" = $2');
-    expect(sql).toContain('"property"."isActive" = $3');
-    expect(params).toEqual([2, 5, true]);
+    expect(sql).toContain('"property"."status" = $3');
+    expect(params).toEqual([2, 5, PropertyStatus.ACTIVE]);
     expect(sql).toContain('LEFT JOIN "property_file" "files"');
     expect(sql).not.toContain('"owner"');
   });
@@ -133,6 +138,6 @@ describe('Property search SQL', () => {
     await service.findAll();
     const builder = getMany.mock.contexts[0] as SelectQueryBuilder<Property>;
     expect(builder.getQuery()).not.toContain('selectedService');
-    expect(builder.getParameters()).toEqual({ isActive: true });
+    expect(builder.getParameters()).toEqual({ status: PropertyStatus.ACTIVE });
   });
 });
