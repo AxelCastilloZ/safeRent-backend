@@ -1,3 +1,4 @@
+import { DropboxService } from '../dropbox/dropbox.service';
 import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -29,6 +30,8 @@ describe('Property service selection', () => {
     const module = await Test.createTestingModule({
       providers: [
         PropertyService,
+
+        { provide: DropboxService, useValue: {} },
         { provide: ServiceService, useValue: catalog },
         { provide: getRepositoryToken(Property), useValue: repo },
         {

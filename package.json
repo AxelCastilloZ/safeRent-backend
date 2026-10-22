@@ -22,7 +22,9 @@
     "currency:sync": "node scripts/currency.cjs sync",
     "currency:status": "node scripts/currency.cjs status",
     "currency:check-db": "node scripts/check-currency-db.cjs",
-    "currency:convert": "node scripts/currency.cjs convert"
+    "currency:convert": "node scripts/currency.cjs convert",
+    "dropbox:connect": "node scripts/dropbox-connect.cjs",
+    "dropbox:rename-folders": "node scripts/dropbox-rename-folders.cjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

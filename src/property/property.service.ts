@@ -1,3 +1,5 @@
+import { DropboxService } from '../dropbox/dropbox.service';
+import { resourceFolder } from '../dropbox/resource-folder';
 import { Repository } from 'typeorm';
 import { Property } from './entities/property.entity';
 import { TypeOfProperty } from './entities/type-of-property.entity';
@@ -40,6 +42,7 @@ export class PropertyService {
         private readonly userRepo: Repository<User>,
 
         private readonly userService: UserService,
+        private readonly dropbox: DropboxService = undefined!,
     ) {}
 
     async create(createPropertyDto: CreatePropertyDto) {
@@ -362,18 +365,21 @@ export class PropertyService {
     async saveFiles(propertyId: number, files: Express.Multer.File[]) {
         const property = await this.findOne(propertyId);
 
-        const propertyFiles = files.map((file) =>
-            this.propertyFileRepo.create({
-                path: file.path,
-                fileName: file.originalname,
-                mimeType: file.mimetype,
-                size: file.size,
-                uploadedBy: property.owner?.name ?? 'unknown',
-                property,
-            }),
-        );
-
-        return await this.propertyFileRepo.save(propertyFiles);
+        if (!files?.length) throw new BadRequestException('No se enviaron archivos.');
+        const propertyFolder = `Propiedades/${resourceFolder(property.title, property.id, 'propiedad')}`;
+        const uploaded: string[] = [];
+        try {
+            const rows: PropertyFile[] = [];
+            for (const file of files) {
+                const stored = await this.dropbox.upload(file, `${propertyFolder}/${file.mimetype.startsWith('image/') ? 'Fotos' : 'Videos'}`);
+                uploaded.push(stored.path);
+                rows.push(this.propertyFileRepo.create({ ...stored, storage: 'dropbox', fileName: file.originalname, mimeType: file.mimetype, size: file.size, uploadedBy: property.owner?.name ?? 'unknown', property }));
+            }
+            return await this.propertyFileRepo.save(rows);
+        } catch (error) {
+            await Promise.allSettled(uploaded.map(path => this.dropbox.delete(path)));
+            throw error;
+        }
     }
 
     async getFiles(propertyId: number) {
@@ -395,7 +401,8 @@ export class PropertyService {
             throw new NotFoundException(`File with Id ${fileId} not found for property ${propertyId}`);
         }
 
-        if (fs.existsSync(file.path)) {
+        if (file.storage === 'dropbox') await this.dropbox.delete(file.path);
+        else if (fs.existsSync(file.path)) {
             fs.unlinkSync(file.path);
         }
 

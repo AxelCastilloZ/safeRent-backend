@@ -1,3 +1,4 @@
+import { DropboxStorage1792627200000 } from './migrations/1792627200000-dropbox-storage';
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -42,6 +43,7 @@ import { ProfileCurrency1792454400002 } from './migrations/1792454400002-profile
         CurrencyProviderCodes1792454400001,
         ProfileCurrency1792454400002,
         SavedProperty1792540800000,
+        DropboxStorage1792627200000,
       ],
       // Development already synchronizes entities; production applies versioned migrations.
       migrationsRun: process.env.DB_SYNCHRONIZE === 'false',

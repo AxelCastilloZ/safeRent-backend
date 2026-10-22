@@ -18,7 +18,7 @@ import {
     Optional,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { uploadOptions } from '../dropbox/upload-options';
 import { extname } from 'path';
 import { PropertyService } from './property.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
@@ -150,32 +150,7 @@ export class PropertyController {
     @AccessTo('property')
     @Post(':id/files')
     @UseInterceptors(
-        FilesInterceptor('files', 10, {
-            storage: diskStorage({
-                destination: './uploads',
-                filename: (_req, file, cb) => {
-                    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-                    const ext = extname(file.originalname);
-                    cb(null, `${uniqueSuffix}${ext}`);
-                },
-            }),
-            fileFilter: (_req, file, cb) => {
-                const allowedMimes = [
-                    'image/jpeg',
-                    'image/png',
-                    'image/webp',
-                    'video/mp4',
-                ];
-                if (allowedMimes.includes(file.mimetype)) {
-                    cb(null, true);
-                } else {
-                    cb(new BadRequestException(`File type ${file.mimetype} is not allowed. Allowed: jpg, png, webp, mp4`), false);
-                }
-            },
-            limits: {
-                fileSize: 10 * 1024 * 1024, // 10MB
-            },
-        }),
+        FilesInterceptor('files', 10, uploadOptions(['image/jpeg', 'image/png', 'image/webp', 'video/mp4'])),
     )
     uploadFiles(
         @Param('id') id: number,

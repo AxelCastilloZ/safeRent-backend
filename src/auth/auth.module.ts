@@ -1,3 +1,4 @@
+import { DropboxModule } from '../dropbox/dropbox.module';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -17,6 +18,7 @@ import { PasswordRecoveryJob, PasswordRecoveryLimit, PasswordResetToken } from '
 
 @Module({
   imports: [
+    DropboxModule,
     MailModule,
     TypeOrmModule.forFeature([PasswordResetToken, PasswordRecoveryJob, PasswordRecoveryLimit]),
     UserModule,

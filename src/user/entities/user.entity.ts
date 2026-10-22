@@ -80,6 +80,12 @@ export class User {
     @CreateDateColumn({ type: 'timestamptz' })
     createdAt!: Date;
 
+    @Column({ type: 'text', nullable: true })
+    profilePhotoUrl?: string | null;
+
+    @Column({ type: 'varchar', length: 500, nullable: true, select: false })
+    profilePhotoPath?: string | null;
+
     //RELATIONSHIPS
     @ManyToMany(()=>Role)
     @JoinTable({ name: 'user_role' })

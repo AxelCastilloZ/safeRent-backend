@@ -19,6 +19,9 @@ export class MessageFile {
     })
     path!: string;
 
+    @Column({ type: 'varchar', length: 20, default: 'local' })
+    storage!: string;
+
     @Column({
         type: 'varchar',
         length: 255,
