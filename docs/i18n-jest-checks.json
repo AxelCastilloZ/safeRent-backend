@@ -1,0 +1,307 @@
+{
+  "date": "2026-10-22",
+  "command": "node node_modules/jest/bin/jest.js --runInBand",
+  "suites": 49,
+  "passedSuites": 49,
+  "failedSuites": 0,
+  "tests": 411,
+  "passed": 411,
+  "failed": 0,
+  "skipped": 0,
+  "suiteResults": [
+    {
+      "file": "property/property-services.spec.ts",
+      "status": "passed",
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "auth/official-access.spec.ts",
+      "status": "passed",
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "auth/profile.service.spec.ts",
+      "status": "passed",
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "service/service.controller.spec.ts",
+      "status": "passed",
+      "passed": 14,
+      "failed": 0
+    },
+    {
+      "file": "comment/comment-moderation.spec.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "file": "auth/profile.http.spec.ts",
+      "status": "passed",
+      "passed": 26,
+      "failed": 0
+    },
+    {
+      "file": "property/property-search.spec.ts",
+      "status": "passed",
+      "passed": 16,
+      "failed": 0
+    },
+    {
+      "file": "property/property-pricing.spec.ts",
+      "status": "passed",
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "auth/register.spec.ts",
+      "status": "passed",
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "currency/currency-scheduler.service.spec.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "file": "currency/currency.http.spec.ts",
+      "status": "passed",
+      "passed": 14,
+      "failed": 0
+    },
+    {
+      "file": "auth/public-landing.spec.ts",
+      "status": "passed",
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "file": "auth/auth.service.spec.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "saved-property/saved-property.spec.ts",
+      "status": "passed",
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "auth/password-recovery.http.spec.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "messages/message/message.controller.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "auth/password-recovery.service.spec.ts",
+      "status": "passed",
+      "passed": 14,
+      "failed": 0
+    },
+    {
+      "file": "user/user.controller.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "auth/auth.controller.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "messages/conversation/conversation-read.controller.spec.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "messages/conversation/conversation.controller.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "role/role.controller.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "messages/message-file/message-file.controller.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "property/property-location.spec.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "file": "messages/message-file/message-file.service.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "auth/language.service.spec.ts",
+      "status": "passed",
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "file": "comment/comment.service.spec.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "messages/conversation/conversation.service.spec.ts",
+      "status": "passed",
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "property/tenant-properties.spec.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "service/service.service.spec.ts",
+      "status": "passed",
+      "passed": 13,
+      "failed": 0
+    },
+    {
+      "file": "messages/message/message.service.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "property/public-property.spec.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "role/role.service.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "property/dto/coordinates.spec.ts",
+      "status": "passed",
+      "passed": 11,
+      "failed": 0
+    },
+    {
+      "file": "property/property-onboarding.spec.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "currency/currency-sync.service.spec.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "mail/brevo-mail.service.spec.ts",
+      "status": "passed",
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "auth/dto/password-recovery.spec.ts",
+      "status": "passed",
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "user/user.service.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "auth/registration-roles.spec.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "reservation/reservation.service.spec.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "file": "currency/currency.service.spec.ts",
+      "status": "passed",
+      "passed": 31,
+      "failed": 0
+    },
+    {
+      "file": "common/i18n.spec.ts",
+      "status": "passed",
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "file": "auth/guard/jwt-auth.guard.spec.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "file": "app.controller.spec.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "file": "property/location.service.spec.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "file": "currency/currency-api.client.spec.ts",
+      "status": "passed",
+      "passed": 26,
+      "failed": 0
+    },
+    {
+      "file": "currency/profile-currency.spec.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "file": "currency/currency-sync.policy.spec.ts",
+      "status": "passed",
+      "passed": 18,
+      "failed": 0
+    }
+  ]
+}

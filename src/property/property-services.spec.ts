@@ -13,6 +13,8 @@ import { IconDescription } from './entities/icon-description.entity';
 import { TypeOfProperty } from './entities/type-of-property.entity';
 import { PropertyService } from './property.service';
 import { UpdatePropertyDto } from './dto/update-property.dto';
+import { UserService } from '../user/user.service';
+import { PropertyStatus } from './property-status.enum';
 
 describe('Property service selection', () => {
   let properties: PropertyService;
@@ -29,6 +31,7 @@ describe('Property service selection', () => {
     const module = await Test.createTestingModule({
       providers: [
         PropertyService,
+        { provide: UserService, useValue: { ensureRole: jest.fn() } },
         { provide: ServiceService, useValue: catalog },
         { provide: getRepositoryToken(Property), useValue: repo },
         {
@@ -56,7 +59,7 @@ describe('Property service selection', () => {
     expect(catalog.findByIds).toHaveBeenCalledWith([1]);
     expect(result).toMatchObject({
       services: [water],
-      isActive: false,
+      status: PropertyStatus.DRAFT,
       owner: { id: 7 },
     });
     expect(result).not.toHaveProperty('serviceIds');
@@ -102,14 +105,7 @@ describe('Property service selection', () => {
   it('retains the join table and prevents deleting assigned services', async () => {
     const source = new DataSource({
       type: 'postgres',
-      entities: [
-        Property,
-        Service,
-        User,
-        PropertyFile,
-        IconDescription,
-        TypeOfProperty,
-      ],
+      entities: [__dirname + '/../**/*.entity.ts'],
     });
     // Metadata validation does not connect to or modify the database.
     await source['buildMetadatas']();

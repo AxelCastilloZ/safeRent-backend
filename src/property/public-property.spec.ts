@@ -26,7 +26,7 @@ describe('Public property details', () => {
     });
     const result = await service.findPublic(9);
     expect(findOne).toHaveBeenCalledWith({
-      where: { id: 9, isActive: true },
+      where: { id: 9, status: 'ACTIVE' },
       relations: { files: true, iconDescriptions: true },
     });
     expect(result.owner).toEqual({ id: 2, name: 'Ana' });

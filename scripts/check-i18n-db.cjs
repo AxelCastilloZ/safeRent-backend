@@ -1,4 +1,5 @@
-// Build first. Default verifies without persistent changes; --apply also runs pending migrations.
+// Build first. Default is reversible; --apply runs pending migrations.
+// --repair explicitly reapplies the two idempotent i18n migrations after schema drift.
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
@@ -53,6 +54,17 @@ const db = new DataSource({
     } else {
       assert.equal(await db.showMigrations(), false, 'Hay migraciones pendientes; ejecutar --apply en el destino autorizado.');
     }
+    if (process.argv.includes('--repair')) {
+      await runner.startTransaction();
+      await profileMigration.up(runner);
+      await catalogMigration.up(runner);
+      await runner.commitTransaction();
+      console.log('Reparación explícita: esquema i18n recreado sin modificar el historial ni nombres de catálogo.');
+    }
+    const columns = await runner.query(`SELECT table_name || '.' || column_name AS name FROM information_schema.columns
+      WHERE table_schema = current_schema() AND ((table_name = 'user' AND column_name = 'preferredLanguage')
+      OR (table_name IN ('service', 'type_of_property') AND column_name IN ('catalogCode', 'translations')))`);
+    assert.equal(columns.length, 5, 'El historial de migraciones no coincide con el esquema i18n: faltan columnas. Investigar synchronize/backend antiguo; usar --repair solo para reparación autorizada.');
     await runner.startTransaction();
     const roles = await runner.manager.find(Role, { where: { isActive: true } });
     const profile = new ProfileService({ getRepository: entity => runner.manager.getRepository(entity) });
@@ -89,7 +101,7 @@ const db = new DataSource({
     const counts = await runner.query('SELECT (SELECT count(*) FROM service WHERE "catalogCode" IS NOT NULL)::int AS services, (SELECT count(*) FROM type_of_property WHERE "catalogCode" IS NOT NULL)::int AS types');
     console.log('Entradas con código de traducción:', counts[0]);
   } catch (error) {
-    console.error('Verificación falló:', error.code || error.name || 'error');
+    console.error('Verificación falló:', error.code || error.name || 'error', error.code === 'ERR_ASSERTION' ? error.message : '');
     process.exitCode = 1;
   } finally {
     if (runner) {

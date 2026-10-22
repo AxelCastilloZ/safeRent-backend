@@ -24,6 +24,10 @@ let app, runner, stopping;
 async function stop() {
   if (stopping) return stopping;
   stopping = (async () => {
+    process.stdin.pause();
+    // Drain HTTP handlers before rollback, so an in-flight handler cannot write after it.
+    const server = app?.getHttpServer();
+    if (server?.listening) await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
     if (runner?.isTransactionActive) await runner.rollbackTransaction();
     if (runner) await runner.release();
     if (app) await app.close();
@@ -41,15 +45,37 @@ async function stop() {
   const password = randomBytes(18).toString('base64url');
   const hash = await bcrypt.hash(password, 10);
   const suffix = randomUUID().slice(0, 8);
+  const accounts = {};
   for (const name of ['CLIENT', 'OWNER', 'ADMIN']) {
     const role = await runner.manager.findOneByOrFail(Role, { name, isActive: true });
     const email = `i18n-${name.toLowerCase()}-${suffix}@example.invalid`;
-    await runner.manager.save(User, { idCard: `${name}-${suffix}`, name: 'I18n QA', surname1: name,
+    accounts[name] = await runner.manager.save(User, { idCard: `${name}-${suffix}`, name: 'I18n QA', surname1: name,
       email, phoneNumber: '88888888', birthdate: '2000-01-01', password: hash,
       isActive: true, sessionVersion: 0, Roles: [role] });
-    console.log(`QA ${name}: ${email}`);
+    if (!process.argv.includes('--check')) console.log(`QA ${name}: ${email}`);
   }
-  console.log(`QA disposable password: ${password}`);
+  if (!process.argv.includes('--check')) console.log(`QA disposable password: ${password}`);
+  if (process.argv.includes('--fixtures')) {
+    const { Property } = require('../dist/src/property/entities/property.entity');
+    const { Conversation } = require('../dist/src/messages/conversation/entities/conversation.entity');
+    const { Message } = require('../dist/src/messages/message/entities/message.entity');
+    const { PropertyComment } = require('../dist/src/comment/entities/property-comment.entity');
+    const { SavedProperty } = require('../dist/src/saved-property/entities/saved-property.entity');
+    let active;
+    for (const status of ['DRAFT', 'PENDING', 'CHANGES_REQUESTED', 'INACTIVE', 'ACTIVE']) {
+      const property = await runner.manager.save(Property, { title: `I18n QA ${status}`, description: 'Contenido ficticio: á é ç ã',
+        cost: 500, typeOfCoin: 'CRC', address: 'San José', latitude: 9.935, longitude: -84.084,
+        owner: accounts.OWNER, ownerId: accounts.OWNER.id, status,
+        reviewNote: status === 'CHANGES_REQUESTED' ? 'QA: completar imágenes' : null,
+        ...(status === 'ACTIVE' ? { reservedTenantId: accounts.CLIENT.id, reservedTenantName: 'I18n QA CLIENT', reservedAt: new Date() } : {}) });
+      if (status === 'ACTIVE') active = property;
+    }
+    const conversation = await runner.manager.save(Conversation, { property: active, participants: [accounts.CLIENT, accounts.OWNER] });
+    await runner.manager.save(Message, { conversation, sender: accounts.CLIENT, message: 'Contenido ficticio: expérience / experiência' });
+    await runner.manager.save(PropertyComment, { property: active, author: accounts.CLIENT, content: 'Comentario ficticio: á é ç ã' });
+    await runner.manager.save(SavedProperty, { user: accounts.CLIENT, property: active });
+    console.log('QA populated fixture:', { propertyId: active.id, conversationId: conversation.id });
+  }
   const disabled = () => { throw new ServiceUnavailableException('QA: outbound disabled'); };
   const module = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DataSource).useValue(db)
@@ -61,7 +87,17 @@ async function stop() {
   app.enableCors();
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, exceptionFactory: validationException }));
   await app.listen(3005, '127.0.0.1');
+  if (process.argv.includes('--check')) {
+    try {
+      const result = await require('./check-i18n-flows.cjs')({ runner, accounts, password, base: 'http://127.0.0.1:3005' });
+      fs.writeFileSync('docs/i18n-flow-checks.json', JSON.stringify(result, null, 2) + '\n');
+    } finally { await stop(); }
+    return;
+  }
   console.log('QA http://127.0.0.1:3005 ready (auto-stop 15 minutes).');
   const timer = setTimeout(() => void stop(), 15 * 60 * 1000); timer.unref();
+  process.stdin.on('data', input => {
+    if (input.toString().trim() === 'stop') { process.stdin.pause(); void stop(); }
+  });
   process.on('SIGINT', () => void stop()); process.on('SIGTERM', () => void stop());
-})().catch(async error => { console.error('QA failed:', error.code || error.name); process.exitCode = 1; await stop(); });
+})().catch(async error => { console.error('QA failed:', error.code || error.name, ['ERR_ASSERTION', '42703'].includes(error.code) ? error.message : ''); process.exitCode = 1; await stop(); });

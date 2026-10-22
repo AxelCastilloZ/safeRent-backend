@@ -8,7 +8,7 @@ describe('MessageFileController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [MessageFileController],
-      providers: [MessageFileService],
+      providers: [{ provide: MessageFileService, useValue: {} }],
     }).compile();
 
     controller = module.get<MessageFileController>(MessageFileController);

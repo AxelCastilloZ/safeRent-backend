@@ -22,7 +22,10 @@
     "currency:sync": "node scripts/currency.cjs sync",
     "currency:status": "node scripts/currency.cjs status",
     "currency:check-db": "node scripts/check-currency-db.cjs",
-    "currency:convert": "node scripts/currency.cjs convert"
+    "currency:convert": "node scripts/currency.cjs convert",
+    "i18n:check-db": "node scripts/check-i18n-db.cjs",
+    "i18n:check-flows": "node scripts/preview-i18n.cjs --check",
+    "i18n:preview": "node scripts/preview-i18n.cjs --fixtures"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
