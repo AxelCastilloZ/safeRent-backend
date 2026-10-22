@@ -47,14 +47,14 @@ export function validateProfileCurrency(
     (typeof countryCode !== 'string' ||
       !PROFILE_COUNTRY_CODES.includes(countryCode))
   ) {
-    throw new BadRequestException('País o territorio no admitido.');
+    throw new BadRequestException({ code: "API_PAIS_O_TERRITORIO_NO_ADMITIDO", message: 'País o territorio no admitido.', params: {  } });
   }
   if (
     preferredCurrency !== undefined &&
     preferredCurrency !== null &&
     (typeof preferredCurrency !== 'string' || !enabled.has(preferredCurrency))
   ) {
-    throw new BadRequestException('Moneda preferida no admitida.');
+    throw new BadRequestException({ code: "API_MONEDA_PREFERIDA_NO_ADMITIDA", message: 'Moneda preferida no admitida.', params: {  } });
   }
 }
 

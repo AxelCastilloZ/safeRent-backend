@@ -25,7 +25,7 @@ export class MessageFileService {
     uploadedBy?: string,
   ) {
     if (!files?.length) {
-      throw new BadRequestException('No files were provided');
+      throw new BadRequestException({ code: "API_NO_FILES_WERE_PROVIDED", message: 'No files were provided', params: {  } });
     }
 
     const message = await this.messageService.findOne(messageId);
@@ -52,13 +52,8 @@ export class MessageFileService {
   }
 
   async download(messageId: number, fileId: number) {
-    const file = await this.messageFileRepo.findOneBy({
-      id: fileId,
-      message: { id: messageId },
-    });
-    if (!file) throw new NotFoundException('Archivo no encontrado');
-    if (!fs.existsSync(file.path))
-      throw new NotFoundException('Archivo no encontrado');
+    const file = await this.messageFileRepo.findOneBy({ id: fileId, message: { id: messageId } });
+    if (!file || !fs.existsSync(file.path)) throw new NotFoundException({ code: "API_ARCHIVO_NO_ENCONTRADO", message: 'Archivo no encontrado', params: {  } });
     return new StreamableFile(fs.createReadStream(file.path), {
       type: file.mimeType,
       disposition: `attachment; filename*=UTF-8''${encodeURIComponent(file.fileName)}`,
@@ -82,9 +77,7 @@ export class MessageFileService {
     });
 
     if (!file) {
-      throw new NotFoundException(
-        `File with Id ${fileId} not found for message ${messageId}`,
-      );
+      throw new NotFoundException({ code: "API_FILE_WITH_ID_NOT_FOUND_FOR_MESSAGE", message: `File with Id ${fileId} not found for message ${messageId}`, params: { v0: fileId, v1: messageId } });
     }
 
     if (fs.existsSync(file.path)) {

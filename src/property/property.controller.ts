@@ -29,6 +29,7 @@ import { ReviewPropertyDto } from './dto/review-property.dto';
 import { SearchLocationDto } from './dto/search-location.dto';
 import { LocationService } from './location.service';
 import { PropertyPricingService } from './property-pricing.service';
+import { requestLanguage } from '../common/language';
 
 @Controller('properties')
 export class PropertyController {
@@ -37,8 +38,8 @@ export class PropertyController {
 
     @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @Get('locations/search')
-    searchLocations(@Query() query: SearchLocationDto) {
-        return this.locationService.search(query.text);
+    searchLocations(@Query() query: SearchLocationDto, @Req() req?: AuthRequest) {
+        return req?.headers['accept-language'] ? this.locationService.search(query.text, requestLanguage(req.headers['accept-language'])) : this.locationService.search(query.text);
     }
 
     @Roles(AppRole.CLIENT, AppRole.OWNER)

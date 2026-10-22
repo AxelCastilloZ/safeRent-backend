@@ -50,14 +50,14 @@ export class PropertyService {
 
         const owner = await this.userRepo.findOneBy({ id: ownerId });
         if (!owner) {
-            throw new NotFoundException(`User with Id ${ownerId} not found`);
+            throw new NotFoundException({ code: "API_USER_WITH_ID_NOT_FOUND", message: `User with Id ${ownerId} not found`, params: { v0: ownerId } });
         }
 
         let typeOfProperty: TypeOfProperty | undefined;
         if (typeOfPropertyId) {
             const found = await this.typeOfPropertyRepo.findOneBy({ id: typeOfPropertyId });
             if (!found) {
-                throw new NotFoundException(`TypeOfProperty with Id ${typeOfPropertyId} not found`);
+                throw new NotFoundException({ code: "API_TYPEOFPROPERTY_WITH_ID_NOT_FOUND", message: `TypeOfProperty with Id ${typeOfPropertyId} not found`, params: { v0: typeOfPropertyId } });
             }
             typeOfProperty = found;
         }
@@ -166,7 +166,7 @@ export class PropertyService {
             where: { id, status: PropertyStatus.ACTIVE },
             relations: { files: true, iconDescriptions: true },
         });
-        if (!property) throw new NotFoundException('Propiedad no disponible');
+        if (!property) throw new NotFoundException({ code: "API_PROPIEDAD_NO_DISPONIBLE", message: 'Propiedad no disponible', params: {  } });
         return {
             id: property.id, title: property.title, description: property.description,
             address: property.address, cost: property.cost, typeOfCoin: property.typeOfCoin,
@@ -206,7 +206,7 @@ export class PropertyService {
         });
 
         if (!property) {
-            throw new NotFoundException(`Property with Id ${id} not found`);
+            throw new NotFoundException({ code: "API_PROPERTY_WITH_ID_NOT_FOUND", message: `Property with Id ${id} not found`, params: { v0: id } });
         }
 
         return property;
@@ -215,7 +215,7 @@ export class PropertyService {
     async findByOwner(ownerId: number) {
         const owner = await this.userRepo.findOneBy({ id: ownerId });
         if (!owner) {
-            throw new NotFoundException(`User with Id ${ownerId} not found`);
+            throw new NotFoundException({ code: "API_USER_WITH_ID_NOT_FOUND", message: `User with Id ${ownerId} not found`, params: { v0: ownerId } });
         }
 
         return await this.propertyRepo.find({
@@ -232,7 +232,7 @@ export class PropertyService {
         if (typeOfPropertyId) {
             const typeOfProperty = await this.typeOfPropertyRepo.findOneBy({ id: typeOfPropertyId });
             if (!typeOfProperty) {
-                throw new NotFoundException(`TypeOfProperty with Id ${typeOfPropertyId} not found`);
+                throw new NotFoundException({ code: "API_TYPEOFPROPERTY_WITH_ID_NOT_FOUND", message: `TypeOfProperty with Id ${typeOfPropertyId} not found`, params: { v0: typeOfPropertyId } });
             }
             property.typeOfProperty = typeOfProperty;
         }
@@ -254,10 +254,10 @@ export class PropertyService {
         const property = await this.findOne(id);
 
         if (property.status === PropertyStatus.ACTIVE) {
-            throw new BadRequestException('La propiedad ya está activa.');
+            throw new BadRequestException({ code: "API_LA_PROPIEDAD_YA_ESTA_ACTIVA", message: 'La propiedad ya está activa.', params: {  } });
         }
         if (property.status === PropertyStatus.PENDING) {
-            throw new BadRequestException('La propiedad ya está en revisión.');
+            throw new BadRequestException({ code: "API_LA_PROPIEDAD_YA_ESTA_EN_REVISION", message: 'La propiedad ya está en revisión.', params: {  } });
         }
 
         this.validateReadyForReview(property);
@@ -276,7 +276,7 @@ export class PropertyService {
         const property = await this.findOne(id);
 
         if (property.status === PropertyStatus.DRAFT) {
-            throw new BadRequestException('La propiedad todavía no fue enviada a revisión.');
+            throw new BadRequestException({ code: "API_LA_PROPIEDAD_TODAVIA_NO_FUE_ENVIADA_A_REVISION", message: 'La propiedad todavía no fue enviada a revisión.', params: {  } });
         }
 
         if (dto.status === PropertyStatus.ACTIVE) {
@@ -295,24 +295,24 @@ export class PropertyService {
         if (!property.address?.trim() || property.address.length > 300 ||
             !Number.isFinite(property.latitude) || !Number.isFinite(property.longitude) ||
             Math.abs(property.latitude!) > 90 || Math.abs(property.longitude!) > 180) {
-            throw new BadRequestException('Completa la dirección y confirma la ubicación en el mapa antes de publicar.');
+            throw new BadRequestException({ code: "API_COMPLETA_LA_DIRECCION_Y_CONFIRMA_LA_UBICACION_EN_EL", message: 'Completa la dirección y confirma la ubicación en el mapa antes de publicar.', params: {  } });
         }
     }
 
     /** Requisitos mínimos para que una propiedad pase a revisión o quede activa. */
     private validateReadyForReview(property: Property) {
         if (!property.title?.trim() || !property.description?.trim()) {
-            throw new BadRequestException('Completa el título y la descripción antes de enviar a revisión.');
+            throw new BadRequestException({ code: "API_COMPLETA_EL_TITULO_Y_LA_DESCRIPCION_ANTES_DE_ENVIAR", message: 'Completa el título y la descripción antes de enviar a revisión.', params: {  } });
         }
 
         this.validateLocation(property);
 
         if ((property.files?.length ?? 0) < 3) {
-            throw new BadRequestException('Agrega al menos 3 imágenes antes de enviar a revisión.');
+            throw new BadRequestException({ code: "API_AGREGA_AL_MENOS_3_IMAGENES_ANTES_DE_ENVIAR_A", message: 'Agrega al menos 3 imágenes antes de enviar a revisión.', params: {  } });
         }
 
         if (!property.services?.length) {
-            throw new BadRequestException('Selecciona al menos un servicio antes de enviar a revisión.');
+            throw new BadRequestException({ code: "API_SELECCIONA_AL_MENOS_UN_SERVICIO_ANTES_DE_ENVIAR_A", message: 'Selecciona al menos un servicio antes de enviar a revisión.', params: {  } });
         }
     }
 
@@ -398,7 +398,7 @@ export class PropertyService {
         });
 
         if (!file) {
-            throw new NotFoundException(`File with Id ${fileId} not found for property ${propertyId}`);
+            throw new NotFoundException({ code: "API_FILE_WITH_ID_NOT_FOUND_FOR_PROPERTY", message: `File with Id ${fileId} not found for property ${propertyId}`, params: { v0: fileId, v1: propertyId } });
         }
 
         if (file.storage === 'dropbox') await this.dropbox.delete(file.path);

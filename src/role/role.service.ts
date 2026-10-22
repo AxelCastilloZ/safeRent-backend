@@ -20,7 +20,7 @@ export class RoleService {
   async findAll() {
     const roles = await this.roleRepo.find();
     if (roles.length === 0) {
-      throw new NotFoundException('No roles found');
+      throw new NotFoundException({ code: "API_NO_ROLES_FOUND", message: 'No roles found', params: {  } });
     }
     return roles;
   }
@@ -29,7 +29,7 @@ export class RoleService {
     const role = await this.roleRepo.findOneBy({ id });
 
     if (!role) {
-      throw new NotFoundException(`Role with Id ${id} not found`);
+      throw new NotFoundException({ code: "API_ROLE_WITH_ID_NOT_FOUND", message: `Role with Id ${id} not found`, params: { v0: id } });
     }
 
     return role;
@@ -43,7 +43,7 @@ export class RoleService {
     const role = await this.findOne(id);
     if (['ADMIN', 'OWNER', 'CLIENT'].includes(role.name) &&
         ((updateRoleDto.name !== undefined && updateRoleDto.name !== role.name) || updateRoleDto.isActive === false)) {
-      throw new BadRequestException('No se puede cambiar el nombre ni desactivar un rol del sistema');
+      throw new BadRequestException({ code: "API_NO_SE_PUEDE_CAMBIAR_EL_NOMBRE_NI_DESACTIVAR_UN", message: 'No se puede cambiar el nombre ni desactivar un rol del sistema', params: {  } });
     }
     await this.roleRepo.update(id, updateRoleDto);
     return await this.findOne(id);
@@ -51,7 +51,7 @@ export class RoleService {
 
   async remove(id: number) {
     const role = await this.findOne(id);
-    if (['ADMIN', 'OWNER', 'CLIENT'].includes(role.name)) throw new BadRequestException('No se puede eliminar un rol del sistema');
+    if (['ADMIN', 'OWNER', 'CLIENT'].includes(role.name)) throw new BadRequestException({ code: "API_NO_SE_PUEDE_ELIMINAR_UN_ROL_DEL_SISTEMA", message: 'No se puede eliminar un rol del sistema', params: {  } });
     return await this.roleRepo.remove(role);
   }
 }

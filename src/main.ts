@@ -6,6 +6,7 @@ import { DataSource, In } from 'typeorm';
 import { PropertyFile } from './property/entities/property-file.entity';
 import type { Request, Response, NextFunction } from 'express';
 import { join } from 'path';
+import { validationException } from './common/validation-exception';
 import * as dns from 'dns';
 
 // Force IPv4 first — Supabase resolves to IPv6 by default
@@ -33,6 +34,7 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       transform: true,
+      exceptionFactory: validationException,
     }),
   );
 

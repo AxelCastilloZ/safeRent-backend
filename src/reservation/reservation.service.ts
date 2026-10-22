@@ -15,8 +15,8 @@ export class ReservationService {
       const property = await properties.createQueryBuilder('property')
         .where('property.id = :id', { id: propertyId })
         .setLock('pessimistic_write').getOne();
-      if (!property) throw new NotFoundException('Propiedad no encontrada');
-      if (property.ownerId !== ownerId) throw new ForbiddenException('Solo el propietario puede quitar la reserva');
+      if (!property) throw new NotFoundException({ code: "API_PROPIEDAD_NO_ENCONTRADA", message: 'Propiedad no encontrada', params: {  } });
+      if (property.ownerId !== ownerId) throw new ForbiddenException({ code: "API_SOLO_EL_PROPIETARIO_PUEDE_QUITAR_LA_RESERVA", message: 'Solo el propietario puede quitar la reserva', params: {  } });
       property.reservedTenantId = null;
       property.reservedTenantName = null;
       property.reservedAt = null;
@@ -32,24 +32,24 @@ export class ReservationService {
         where: { id: conversationId },
         relations: { participants: true, property: true },
       });
-      if (!conversation?.property) throw new NotFoundException('Conversación no encontrada');
+      if (!conversation?.property) throw new NotFoundException({ code: "API_CONVERSACION_NO_ENCONTRADA", message: 'Conversación no encontrada', params: {  } });
       const properties = manager.getRepository(Property);
       // Lock only the property row, not nullable joins, to serialize competing reservations.
       const property = await properties.createQueryBuilder('property')
         .where('property.id = :id', { id: conversation.property.id })
         .setLock('pessimistic_write').getOne();
-      if (!property) throw new NotFoundException('Propiedad no encontrada');
+      if (!property) throw new NotFoundException({ code: "API_PROPIEDAD_NO_ENCONTRADA", message: 'Propiedad no encontrada', params: {  } });
       if (property.ownerId !== ownerId ||
           !conversation.participants.some((user) => user.id === ownerId)) {
-        throw new ForbiddenException('Solo el propietario puede alquilar esta propiedad');
+        throw new ForbiddenException({ code: "API_SOLO_EL_PROPIETARIO_PUEDE_ALQUILAR_ESTA_PROPIEDAD", message: 'Solo el propietario puede alquilar esta propiedad', params: {  } });
       }
       const tenants = conversation.participants.filter((user) => user.id !== ownerId);
-      if (tenants.length !== 1) throw new BadRequestException('La conversación debe tener un único inquilino');
+      if (tenants.length !== 1) throw new BadRequestException({ code: "API_LA_CONVERSACION_DEBE_TENER_UN_UNICO_INQUILINO", message: 'La conversación debe tener un único inquilino', params: {  } });
       const tenant = await manager.getRepository(User).findOneBy({ id: tenants[0].id, isActive: true });
-      if (!tenant) throw new BadRequestException('El inquilino no está activo');
-      if (property.status !== PropertyStatus.ACTIVE) throw new BadRequestException('Solo puedes reservar una propiedad activa');
+      if (!tenant) throw new BadRequestException({ code: "API_EL_INQUILINO_NO_ESTA_ACTIVO", message: 'El inquilino no está activo', params: {  } });
+      if (property.status !== PropertyStatus.ACTIVE) throw new BadRequestException({ code: "API_SOLO_PUEDES_RESERVAR_UNA_PROPIEDAD_ACTIVA", message: 'Solo puedes reservar una propiedad activa', params: {  } });
       if (property.reservedTenantId && property.reservedTenantId !== tenant.id) {
-        throw new ConflictException('La propiedad ya está reservada por otra persona');
+        throw new ConflictException({ code: "API_LA_PROPIEDAD_YA_ESTA_RESERVADA_POR_OTRA_PERSONA", message: 'La propiedad ya está reservada por otra persona', params: {  } });
       }
       if (!property.reservedTenantId) {
         property.reservedTenantId = tenant.id;

@@ -33,8 +33,17 @@ export class MessageFileController {
             }),
             limits: { fileSize: 10 * 1024 * 1024 },
             fileFilter: (_req, file, cb) => {
-                if (['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.mimetype)) cb(null, true);
-                else cb(new BadRequestException('Formato de archivo no permitido.'), false);
+                const allowedMimes = [
+                    'image/jpeg',
+                    'image/png',
+                    'image/webp',
+                    'application/pdf',
+                ];
+                if (allowedMimes.includes(file.mimetype)) {
+                    cb(null, true);
+                } else {
+                    cb(new BadRequestException({ code: "API_FILE_TYPE_IS_NOT_ALLOWED_ALLOWED_JPG_PNG_WEBP", message: `File type ${file.mimetype} is not allowed. Allowed: jpg, png, webp, pdf`, params: { v0: file.mimetype } }), false);
+                }
             },
         }),
     )

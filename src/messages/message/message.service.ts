@@ -27,7 +27,7 @@ export class MessageService {
 
     const sender = await this.userRepo.findOneBy({ id: senderId });
     if (!sender) {
-      throw new NotFoundException(`User with Id ${senderId} not found`);
+      throw new NotFoundException({ code: "API_USER_WITH_ID_NOT_FOUND", message: `User with Id ${senderId} not found`, params: { v0: senderId } });
     }
 
     const newMessage = this.messageRepo.create({
@@ -46,7 +46,7 @@ export class MessageService {
     });
 
     if (!message) {
-      throw new NotFoundException(`Message with Id ${id} not found`);
+      throw new NotFoundException({ code: "API_MESSAGE_WITH_ID_NOT_FOUND", message: `Message with Id ${id} not found`, params: { v0: id } });
     }
 
     return message;
@@ -65,7 +65,7 @@ export class MessageService {
   private ensureParticipant(conversation: Conversation, userId: number) {
     const isParticipant = conversation.participants.some((participant) => participant.id === userId);
     if (!isParticipant) {
-      throw new ForbiddenException('The user is not a participant in this conversation');
+      throw new ForbiddenException({ code: "API_THE_USER_IS_NOT_A_PARTICIPANT_IN_THIS_CONVERSATION", message: 'The user is not a participant in this conversation', params: {  } });
     }
   }
 }
