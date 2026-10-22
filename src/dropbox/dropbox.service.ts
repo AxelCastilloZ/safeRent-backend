@@ -134,15 +134,13 @@ export class DropboxService {
     }
   }
 
-  async upload(file: Express.Multer.File, folder: string, shared = true) {
+  async upload(file: Express.Multer.File, folder: string) {
     const base = `${this.root()}/${folder}`;
     await this.ensureFolder(base);
     const extension = {
       'image/jpeg': 'jpg',
       'image/png': 'png',
       'image/webp': 'webp',
-      'video/mp4': 'mp4',
-      'application/pdf': 'pdf',
     }[file.mimetype];
     const response = await this.request(
       'files/upload',
@@ -160,7 +158,7 @@ export class DropboxService {
       );
     const metadata = (await response.json()) as Metadata;
     try {
-      const url = shared ? await this.sharedLink(metadata.path_lower) : null;
+      const url = await this.sharedLink(metadata.path_lower);
       return { path: metadata.path_lower, rev: metadata.rev, url };
     } catch (error) {
       await this.delete(metadata.path_lower).catch(() => undefined);
@@ -168,21 +166,59 @@ export class DropboxService {
     }
   }
 
-  private async sharedLink(path: string) {
-    const { url } = await this.rpc<{ url: string }>(
-      'sharing/create_shared_link_with_settings',
-      { path },
+  async metadata(path: string) {
+    return this.rpc<Metadata>('files/get_metadata', { path });
+  }
+
+  async existingSharedLink(path: string) {
+    const existing = await this.rpc<{ links: { url: string }[] }>(
+      'sharing/list_shared_links',
+      { path, direct_only: true },
     );
-    const direct = new URL(url);
+    if (!existing.links[0]?.url)
+      throw new ServiceUnavailableException(
+        'El archivo no tiene un enlace compartido existente.',
+      );
+    const direct = new URL(existing.links[0].url);
     direct.searchParams.delete('dl');
     direct.searchParams.set('raw', '1');
     return direct.toString();
   }
 
-  async temporaryLink(path: string) {
-    return (
-      await this.rpc<{ link: string }>('files/get_temporary_link', { path })
-    ).link;
+  async sharedLink(path: string) {
+    const response = await this.request(
+      'sharing/create_shared_link_with_settings',
+      { path },
+    );
+    const data = (await response.json()) as {
+      url?: string;
+      error?: {
+        '.tag'?: string;
+        shared_link_already_exists?: { metadata?: { url?: string } };
+      };
+    };
+    let url = response.ok
+      ? data.url
+      : data.error?.shared_link_already_exists?.metadata?.url;
+    if (
+      !url &&
+      response.status === 409 &&
+      data.error?.['.tag'] === 'shared_link_already_exists'
+    ) {
+      const existing = await this.rpc<{ links: { url: string }[] }>(
+        'sharing/list_shared_links',
+        { path, direct_only: true },
+      );
+      url = existing.links[0]?.url;
+    }
+    if (!url)
+      throw new ServiceUnavailableException(
+        'No se pudo obtener el enlace del archivo en Dropbox.',
+      );
+    const direct = new URL(url);
+    direct.searchParams.delete('dl');
+    direct.searchParams.set('raw', '1');
+    return direct.toString();
   }
 
   async delete(path: string) {

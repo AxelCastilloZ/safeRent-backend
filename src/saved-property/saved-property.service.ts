@@ -52,7 +52,7 @@ export class SavedPropertyService {
       status: property.status,
       typeOfProperty: property.typeOfProperty,
       services: property.services,
-      files: (property.files ?? []).map(({ path, mimeType }) => ({ path, mimeType })),
+      files: (property.files ?? []).map(({ path, mimeType, url }) => ({ path, mimeType, url })),
       owner: { id: property.owner.id, name: property.owner.name },
       // Solo si está reservada, no a nombre de quién.
       reserved: Boolean(property.reservedTenantId),

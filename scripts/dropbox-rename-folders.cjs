@@ -52,16 +52,11 @@ async function main() {
     await db.connect();
     await db.query('BEGIN');
     await db.query(
-      'LOCK TABLE property, property_file, "user" IN SHARE ROW EXCLUSIVE MODE',
+      'LOCK TABLE property, property_file IN SHARE ROW EXCLUSIVE MODE',
     );
     const properties = (
       await db.query(
         `SELECT p.id,p.title,f.path FROM property p JOIN property_file f ON f."propertyId"=p.id WHERE f.storage='dropbox'`,
-      )
-    ).rows;
-    const users = (
-      await db.query(
-        `SELECT id,name,surname1,surname2,"profilePhotoPath" FROM "user" WHERE "profilePhotoPath" IS NOT NULL`,
       )
     ).rows;
     const plans = new Map();
@@ -80,14 +75,6 @@ async function main() {
     }
     for (const p of properties)
       plan(p.path, 'propiedades', p.title, p.id, 'propiedad');
-    for (const u of users)
-      plan(
-        u.profilePhotoPath,
-        'usuarios',
-        [u.name, u.surname1, u.surname2].filter(Boolean).join(' '),
-        u.id,
-        'usuario',
-      );
     console.log(
       JSON.stringify({ apply, folders: [...plans.values()] }, null, 2),
     );
@@ -127,10 +114,6 @@ async function main() {
       const toPrefix = p.to.toLowerCase() + '/';
       await db.query(
         `UPDATE property_file SET path=$1 || substring(path FROM $2::integer) WHERE storage='dropbox' AND left(lower(path),$3)=$4`,
-        [toPrefix, fromPrefix.length + 1, fromPrefix.length, fromPrefix],
-      );
-      await db.query(
-        `UPDATE "user" SET "profilePhotoPath"=$1 || substring("profilePhotoPath" FROM $2::integer) WHERE left(lower("profilePhotoPath"),$3)=$4`,
         [toPrefix, fromPrefix.length + 1, fromPrefix.length, fromPrefix],
       );
     }

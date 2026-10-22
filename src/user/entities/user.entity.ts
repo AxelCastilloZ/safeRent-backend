@@ -80,7 +80,8 @@ export class User {
     @CreateDateColumn({ type: 'timestamptz' })
     createdAt!: Date;
 
-    @Column({ type: 'text', nullable: true })
+    // Legacy data only: profile photo management is disabled. Keep columns to avoid data loss during synchronization.
+    @Column({ type: 'text', nullable: true, select: false })
     profilePhotoUrl?: string | null;
 
     @Column({ type: 'varchar', length: 500, nullable: true, select: false })

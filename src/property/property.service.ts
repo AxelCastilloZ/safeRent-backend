@@ -174,7 +174,7 @@ export class PropertyService {
             latitude: property.latitude, longitude: property.longitude,
             typeOfProperty: property.typeOfProperty,
             services: property.services, iconDescriptions: property.iconDescriptions,
-            files: property.files.map(({ path, mimeType }) => ({ path, mimeType })),
+            files: property.files.map(({ path, mimeType, url }) => ({ path, mimeType, url })),
             owner: { id: property.owner.id, name: property.owner.name },
             reservedTenantId: property.reservedTenantId,
             reservedTenantName: property.reservedTenantName,
@@ -193,7 +193,7 @@ export class PropertyService {
             address: property.address, cost: property.cost, typeOfCoin: property.typeOfCoin,
             rooms: property.rooms, guest: property.guest, status: property.status,
             typeOfProperty: property.typeOfProperty, services: property.services,
-            files: property.files.map(({ path, mimeType }) => ({ path, mimeType })),
+            files: property.files.map(({ path, mimeType, url }) => ({ path, mimeType, url })),
             owner: { id: property.owner.id, name: property.owner.name },
             reservedAt: property.reservedAt,
         }));
@@ -371,7 +371,7 @@ export class PropertyService {
         try {
             const rows: PropertyFile[] = [];
             for (const file of files) {
-                const stored = await this.dropbox.upload(file, `${propertyFolder}/${file.mimetype.startsWith('image/') ? 'Fotos' : 'Videos'}`);
+                const stored = await this.dropbox.upload(file, `${propertyFolder}/Fotos`);
                 uploaded.push(stored.path);
                 rows.push(this.propertyFileRepo.create({ ...stored, storage: 'dropbox', fileName: file.originalname, mimeType: file.mimetype, size: file.size, uploadedBy: property.owner?.name ?? 'unknown', property }));
             }

@@ -13,7 +13,8 @@ import {
     BadRequestException,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { uploadOptions } from '../../dropbox/upload-options';
+import { diskStorage } from 'multer';
+import { randomUUID } from 'node:crypto';
 import { extname } from 'path';
 import { MessageFileService } from './message-file.service';
 
@@ -25,7 +26,17 @@ export class MessageFileController {
     @AccessTo('message')
     @Post()
     @UseInterceptors(
-        FilesInterceptor('files', 10, uploadOptions(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])),
+        FilesInterceptor('files', 10, {
+            storage: diskStorage({
+                destination: './uploads',
+                filename: (_req, file, cb) => cb(null, randomUUID() + extname(file.originalname)),
+            }),
+            limits: { fileSize: 10 * 1024 * 1024 },
+            fileFilter: (_req, file, cb) => {
+                if (['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.mimetype)) cb(null, true);
+                else cb(new BadRequestException('Formato de archivo no permitido.'), false);
+            },
+        }),
     )
     upload(
         @Param('messageId') messageId: number,

@@ -1,6 +1,3 @@
-import { BadRequestException, Delete, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { uploadOptions } from '../dropbox/upload-options';
 import {
   Body,
   Controller,
@@ -30,16 +27,6 @@ export class AuthController {
 
   @Get('profile')
   getProfile(@Req() request: AuthRequest) { return this.profile.get(request.user.id); }
-
-  @Post('profile/photo')
-  @UseInterceptors(FileInterceptor('file', uploadOptions(['image/jpeg', 'image/png', 'image/webp'], 5)))
-  uploadPhoto(@Req() request: AuthRequest, @UploadedFile() file?: Express.Multer.File) {
-    if (!file?.buffer?.length) throw new BadRequestException('Selecciona una foto.');
-    return this.profile.photo(request.user.id, file);
-  }
-
-  @Delete('profile/photo')
-  deletePhoto(@Req() request: AuthRequest) { return this.profile.photo(request.user.id); }
 
   @Get('profile-options')
   getProfileOptions() { return getProfileCurrencyOptions(); }

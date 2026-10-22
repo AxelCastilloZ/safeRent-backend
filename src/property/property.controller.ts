@@ -150,7 +150,7 @@ export class PropertyController {
     @AccessTo('property')
     @Post(':id/files')
     @UseInterceptors(
-        FilesInterceptor('files', 10, uploadOptions(['image/jpeg', 'image/png', 'image/webp', 'video/mp4'])),
+        FilesInterceptor('files', 10, uploadOptions(['image/jpeg', 'image/png', 'image/webp'])),
     )
     uploadFiles(
         @Param('id') id: number,
