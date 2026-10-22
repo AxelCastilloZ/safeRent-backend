@@ -17,7 +17,7 @@ import { PROFILE_CURRENCY_CODES } from '../../currency/profile-currency';
 export class FindPropertiesDto {
   @IsOptional()
   @Transform(({ value }: { value: unknown }) => {
-    if (value === undefined || value === null || value === '') {
+    if (value === undefined || value === null) {
       return undefined;
     }
 
@@ -25,7 +25,11 @@ export class FindPropertiesDto {
 
     return values
       .flatMap((item) => (typeof item === 'string' ? item.split(',') : [item]))
-      .map((item) => (typeof item === 'string' ? Number(item.trim()) : item));
+      .map((item) =>
+        typeof item === 'string'
+          ? /^\d+$/.test(item.trim()) ? Number(item.trim()) : NaN
+          : item,
+      );
   })
   @IsArray()
   @ArrayMaxSize(50)

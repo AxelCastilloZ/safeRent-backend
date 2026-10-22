@@ -7,6 +7,7 @@ import { ServiceService } from './service.service';
 
 describe('Service HTTP API', () => {
   let app: INestApplication;
+  const translations = { es: { name: 'Internet' }, en: { name: 'Internet' }, fr: { name: 'Internet' }, pt: { name: 'Internet' } };
   const catalog = {
     create: jest.fn(),
     findAll: jest.fn(),
@@ -32,7 +33,7 @@ describe('Service HTTP API', () => {
     await app.close();
   });
 
-  it.each(['/services', '/service'])('lists the catalog at %s', async (url) => {
+  it.each(['/service'])('lists the catalog at %s', async (url) => {
     catalog.findAll.mockResolvedValue([{ id: 1, name: 'Agua' }]);
     await request(app.getHttpServer() as Server)
       .get(url)
@@ -46,51 +47,56 @@ describe('Service HTTP API', () => {
       icono: 'wifi',
     });
     await request(app.getHttpServer() as Server)
-      .post('/services')
-      .send({ name: ' Internet ', icono: 'wifi', properties: [{ id: 1 }] })
+      .post('/service')
+      .send({ name: ' Internet ', icono: 'wifi', translations, catalogCode: 'injected', properties: [{ id: 1 }] })
       .expect(201);
     expect(catalog.create).toHaveBeenCalledWith({
       name: 'Internet',
       icono: 'wifi',
+      translations,
     });
+    expect(catalog.create.mock.calls[0][0]).not.toHaveProperty('catalogCode');
+    expect(catalog.create.mock.calls[0][0]).not.toHaveProperty('properties');
   });
   it.each([
     {},
-    { name: '   ' },
-    { name: 1 },
-    { name: 'x'.repeat(101) },
-    { name: 'Agua', icono: 7 },
-    { name: 'Agua', description: 'x'.repeat(256) },
+    { name: 'Agua' },
+    { name: 'Agua', translations: { es: { name: 'Agua' } } },
+    { name: '   ', translations },
+    { name: 1, translations },
+    { name: 'x'.repeat(101), translations },
+    { name: 'Agua', icono: 7, translations },
+    { name: 'Agua', description: 'x'.repeat(256), translations },
   ])('rejects invalid creation: %j', async (body) => {
     await request(app.getHttpServer() as Server)
-      .post('/services')
+      .post('/service')
       .send(body)
       .expect(400);
     expect(catalog.create).not.toHaveBeenCalled();
   });
   it('rejects a non-numeric identifier', async () => {
     await request(app.getHttpServer() as Server)
-      .get('/services/invalid')
+      .get('/service/invalid')
       .expect(400);
     expect(catalog.findOne).not.toHaveBeenCalled();
   });
   it('rejects null names when editing', async () => {
     await request(app.getHttpServer() as Server)
-      .patch('/services/1')
+      .patch('/service/1')
       .send({ name: null })
       .expect(400);
     expect(catalog.update).not.toHaveBeenCalled();
   });
   it('supports partial updates and clearing optional fields', async () => {
     await request(app.getHttpServer() as Server)
-      .patch('/services/1')
+      .patch('/service/1')
       .send({ icono: null })
       .expect(200);
     expect(catalog.update).toHaveBeenCalledWith(1, { icono: null });
   });
   it('returns no content after deletion', async () => {
     await request(app.getHttpServer() as Server)
-      .delete('/services/1')
+      .delete('/service/1')
       .expect(204);
     expect(catalog.remove).toHaveBeenCalledWith(1);
   });
