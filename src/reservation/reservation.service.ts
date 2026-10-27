@@ -8,6 +8,7 @@ import { Visit } from '../visit/entities/visit.entity';
 import { VisitNotificationService } from '../visit/visit-notification.service';
 import { VisitStatus } from '../visit/visit-status.enum';
 import { VisitService } from '../visit/visit.service';
+import { ReservationNotificationService, type ReservationNotice } from './reservation-notification.service';
 
 @Injectable()
 export class ReservationService {
@@ -16,27 +17,36 @@ export class ReservationService {
     // Opcionales: sin ellos reservar funciona igual, solo que no cancela las demás citas ni avisa (pruebas y scripts).
     @Optional() private readonly visits?: VisitService,
     @Optional() private readonly notifier?: VisitNotificationService,
+    @Optional() private readonly reservationNotifier?: ReservationNotificationService,
   ) {}
 
-  async release(propertyId: number, ownerId: number) {
-    return this.dataSource.transaction(async (manager) => {
+  async release(propertyId: number, ownerId: number, reason: string) {
+    if (!reason?.trim() || reason.trim().length > 500) throw new BadRequestException('El motivo debe tener entre 1 y 500 caracteres.');
+    const { result, notice } = await this.dataSource.transaction(async (manager) => {
       const properties = manager.getRepository(Property);
       const property = await properties.createQueryBuilder('property')
         .where('property.id = :id', { id: propertyId })
         .setLock('pessimistic_write').getOne();
       if (!property) throw new NotFoundException({ code: "API_PROPIEDAD_NO_ENCONTRADA", message: 'Propiedad no encontrada', params: {  } });
       if (property.ownerId !== ownerId) throw new ForbiddenException({ code: "API_SOLO_EL_PROPIETARIO_PUEDE_QUITAR_LA_RESERVA", message: 'Solo el propietario puede quitar la reserva', params: {  } });
+      // Captura al destinatario antes de eliminar la relación con el inquilino.
+      const notice: ReservationNotice | null = property.reservedTenantId ? {
+        propertyId: property.id, property: property.title, ownerId: property.ownerId,
+        tenantId: property.reservedTenantId, reason: reason.trim(),
+      } : null;
       property.reservedTenantId = null;
       property.reservedTenantName = null;
       property.reservedAt = null;
       property.reservedTenant = null;
       await properties.save(property);
-      return { propertyId: property.id, reservedTenantId: null, reservedTenantName: null, reservedAt: null };
+      return { result: { propertyId: property.id, reservedTenantId: null, reservedTenantName: null, reservedAt: null }, notice };
     });
+    if (notice) void this.reservationNotifier?.notify('RELEASED', notice);
+    return result;
   }
 
   async reserve(conversationId: number, ownerId: number) {
-    const { result, cancelled } = await this.dataSource.transaction(async (manager) => {
+    const { result, cancelled, notice } = await this.dataSource.transaction(async (manager) => {
       const conversation = await manager.getRepository(Conversation).findOne({
         where: { id: conversationId },
         relations: { participants: true, property: true },
@@ -57,12 +67,13 @@ export class ReservationService {
       return this.assignTenant(manager, property, tenants[0].id);
     });
     this.tellCancelledVisits(cancelled);
+    if (notice) void this.reservationNotifier?.notify('CONFIRMED', notice);
     return result;
   }
 
   /** Reserva la propiedad para el inquilino de una cita confirmada (el propietario sigue decidiendo: la cita solo le ahorra buscar la conversación). */
   async reserveFromVisit(visitId: number, ownerId: number) {
-    const { result, cancelled } = await this.dataSource.transaction(async (manager) => {
+    const { result, cancelled, notice } = await this.dataSource.transaction(async (manager) => {
       const visit = await manager.getRepository(Visit).findOneBy({ id: visitId });
       if (!visit) throw new NotFoundException({ code: 'API_CITA_NO_ENCONTRADA', message: 'Cita no encontrada', params: {} });
       if (visit.ownerId !== ownerId) throw new ForbiddenException({ code: "API_SOLO_EL_PROPIETARIO_PUEDE_ALQUILAR_ESTA_PROPIEDAD", message: 'Solo el propietario puede alquilar esta propiedad', params: {  } });
@@ -75,6 +86,7 @@ export class ReservationService {
       return this.assignTenant(manager, property, visit.tenantId);
     });
     this.tellCancelledVisits(cancelled);
+    if (notice) void this.reservationNotifier?.notify('CONFIRMED', notice);
     return result;
   }
 
@@ -86,6 +98,7 @@ export class ReservationService {
       throw new ConflictException({ code: "API_LA_PROPIEDAD_YA_ESTA_RESERVADA_POR_OTRA_PERSONA", message: 'La propiedad ya está reservada por otra persona', params: {  } });
     }
     let cancelled: number[] = [];
+    let notice: ReservationNotice | null = null;
     if (!property.reservedTenantId) {
       property.reservedTenantId = tenant.id;
       property.reservedTenantName = [tenant.name, tenant.surname1, tenant.surname2].filter(Boolean).join(' ');
@@ -93,6 +106,7 @@ export class ReservationService {
       await manager.getRepository(Property).save(property);
       // Con la propiedad reservada, las citas de las demás personas dejan de tener sentido.
       cancelled = (await this.visits?.cancelForReservation(manager, property.id, tenant.id)) ?? [];
+      notice = { propertyId: property.id, property: property.title, ownerId: property.ownerId, tenantId: tenant.id };
     }
     return {
       result: {
@@ -102,6 +116,7 @@ export class ReservationService {
         reservedAt: property.reservedAt,
       },
       cancelled,
+      notice,
     };
   }
 
