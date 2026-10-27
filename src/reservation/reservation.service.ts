@@ -1,9 +1,11 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { Conversation } from '../messages/conversation/entities/conversation.entity';
 import { Property } from '../property/entities/property.entity';
 import { PropertyStatus } from '../property/property-status.enum';
 import { User } from '../user/entities/user.entity';
+import { Visit } from '../visit/entities/visit.entity';
+import { VisitStatus } from '../visit/visit-status.enum';
 
 @Injectable()
 export class ReservationService {
@@ -45,24 +47,44 @@ export class ReservationService {
       }
       const tenants = conversation.participants.filter((user) => user.id !== ownerId);
       if (tenants.length !== 1) throw new BadRequestException({ code: "API_LA_CONVERSACION_DEBE_TENER_UN_UNICO_INQUILINO", message: 'La conversación debe tener un único inquilino', params: {  } });
-      const tenant = await manager.getRepository(User).findOneBy({ id: tenants[0].id, isActive: true });
-      if (!tenant) throw new BadRequestException({ code: "API_EL_INQUILINO_NO_ESTA_ACTIVO", message: 'El inquilino no está activo', params: {  } });
-      if (property.status !== PropertyStatus.ACTIVE) throw new BadRequestException({ code: "API_SOLO_PUEDES_RESERVAR_UNA_PROPIEDAD_ACTIVA", message: 'Solo puedes reservar una propiedad activa', params: {  } });
-      if (property.reservedTenantId && property.reservedTenantId !== tenant.id) {
-        throw new ConflictException({ code: "API_LA_PROPIEDAD_YA_ESTA_RESERVADA_POR_OTRA_PERSONA", message: 'La propiedad ya está reservada por otra persona', params: {  } });
-      }
-      if (!property.reservedTenantId) {
-        property.reservedTenantId = tenant.id;
-        property.reservedTenantName = [tenant.name, tenant.surname1, tenant.surname2].filter(Boolean).join(' ');
-        property.reservedAt = new Date();
-        await properties.save(property);
-      }
-      return {
-        propertyId: property.id,
-        reservedTenantId: property.reservedTenantId,
-        reservedTenantName: property.reservedTenantName,
-        reservedAt: property.reservedAt,
-      };
+      return this.assignTenant(manager, property, tenants[0].id);
     });
+  }
+
+  /** Reserva la propiedad para el inquilino de una cita confirmada (el propietario sigue decidiendo: la cita solo le ahorra buscar la conversación). */
+  async reserveFromVisit(visitId: number, ownerId: number) {
+    return this.dataSource.transaction(async (manager) => {
+      const visit = await manager.getRepository(Visit).findOneBy({ id: visitId });
+      if (!visit) throw new NotFoundException({ code: 'API_CITA_NO_ENCONTRADA', message: 'Cita no encontrada', params: {} });
+      if (visit.ownerId !== ownerId) throw new ForbiddenException({ code: "API_SOLO_EL_PROPIETARIO_PUEDE_ALQUILAR_ESTA_PROPIEDAD", message: 'Solo el propietario puede alquilar esta propiedad', params: {  } });
+      if (visit.status !== VisitStatus.CONFIRMED) throw new ConflictException({ code: 'API_LA_CITA_DEBE_ESTAR_CONFIRMADA_PARA_RESERVAR', message: 'La cita debe estar confirmada para reservar', params: {} });
+      const property = await manager.getRepository(Property).createQueryBuilder('property')
+        .where('property.id = :id', { id: visit.propertyId })
+        .setLock('pessimistic_write').getOne();
+      if (!property) throw new NotFoundException({ code: "API_PROPIEDAD_NO_ENCONTRADA", message: 'Propiedad no encontrada', params: {  } });
+      if (property.ownerId !== ownerId) throw new ForbiddenException({ code: "API_SOLO_EL_PROPIETARIO_PUEDE_ALQUILAR_ESTA_PROPIEDAD", message: 'Solo el propietario puede alquilar esta propiedad', params: {  } });
+      return this.assignTenant(manager, property, visit.tenantId);
+    });
+  }
+
+  private async assignTenant(manager: EntityManager, property: Property, tenantId: number) {
+    const tenant = await manager.getRepository(User).findOneBy({ id: tenantId, isActive: true });
+    if (!tenant) throw new BadRequestException({ code: "API_EL_INQUILINO_NO_ESTA_ACTIVO", message: 'El inquilino no está activo', params: {  } });
+    if (property.status !== PropertyStatus.ACTIVE) throw new BadRequestException({ code: "API_SOLO_PUEDES_RESERVAR_UNA_PROPIEDAD_ACTIVA", message: 'Solo puedes reservar una propiedad activa', params: {  } });
+    if (property.reservedTenantId && property.reservedTenantId !== tenant.id) {
+      throw new ConflictException({ code: "API_LA_PROPIEDAD_YA_ESTA_RESERVADA_POR_OTRA_PERSONA", message: 'La propiedad ya está reservada por otra persona', params: {  } });
+    }
+    if (!property.reservedTenantId) {
+      property.reservedTenantId = tenant.id;
+      property.reservedTenantName = [tenant.name, tenant.surname1, tenant.surname2].filter(Boolean).join(' ');
+      property.reservedAt = new Date();
+      await manager.getRepository(Property).save(property);
+    }
+    return {
+      propertyId: property.id,
+      reservedTenantId: property.reservedTenantId,
+      reservedTenantName: property.reservedTenantName,
+      reservedAt: property.reservedAt,
+    };
   }
 }

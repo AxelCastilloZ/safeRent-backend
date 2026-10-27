@@ -14,6 +14,12 @@ export class ReservationController {
   }
 
   @Roles(AppRole.OWNER)
+  @Post('visit/:visitId')
+  reserveFromVisit(@Param('visitId', ParseIntPipe) visitId: number, @Req() req: AuthRequest) {
+    return this.reservations.reserveFromVisit(visitId, req.user.id);
+  }
+
+  @Roles(AppRole.OWNER)
   @Post('conversation/:conversationId')
   reserve(@Param('conversationId', ParseIntPipe) conversationId: number, @Req() req: AuthRequest) {
     return this.reservations.reserve(conversationId, req.user.id);
