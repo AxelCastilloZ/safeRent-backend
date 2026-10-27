@@ -18,7 +18,7 @@ jest.mock('../user/user.service', () => ({ UserService: class {} }));
 const validProfile = { name: 'José', surname1: 'Pérez', surname2: '', email: 'jose@example.com', phoneNumber: '88888888', birthdate: '2000-01-01' };
 describe('Authenticated profile HTTP contract', () => {
   let app: INestApplication;
-  const profile = { get: jest.fn(), update: jest.fn(), changePassword: jest.fn(), updateLanguage: jest.fn() };
+  const profile = { get: jest.fn(), update: jest.fn(), changePassword: jest.fn(), updateLanguage: jest.fn(), updateCurrency: jest.fn() };
   beforeEach(async () => {
     jest.clearAllMocks();
     profile.get.mockResolvedValue({ id: 7, ...validProfile });
@@ -47,6 +47,26 @@ describe('Authenticated profile HTTP contract', () => {
   it('requires authentication to change the language', async () => {
     await request(app.getHttpServer() as Server).patch('/auth/language').send({ preferredLanguage: 'fr' }).expect(401);
     expect(profile.updateLanguage).not.toHaveBeenCalled();
+  });
+  it('exposes only the currency catalog without authentication', async () => {
+    const response = await request(app.getHttpServer() as Server).get('/auth/display-currencies').expect(200);
+    expect(response.body.currencies).toEqual(expect.arrayContaining([{ code: 'USD', name: expect.any(String) }]));
+    expect(response.body).not.toHaveProperty('countries');
+  });
+  it('requires authentication to change the currency', async () => {
+    await request(app.getHttpServer() as Server).patch('/auth/currency').send({ preferredCurrency: 'USD' }).expect(401);
+    expect(profile.updateCurrency).not.toHaveBeenCalled();
+  });
+  it('takes the currency account from the token and strips injected fields', async () => {
+    profile.updateCurrency.mockResolvedValue({ preferredCurrency: 'USD' });
+    await request(app.getHttpServer() as Server).patch('/auth/currency').set('Authorization', 'Bearer test')
+      .send({ preferredCurrency: 'USD', id: 99, roles: ['ADMIN'] }).expect(200);
+    expect(profile.updateCurrency).toHaveBeenCalledWith(7, 'USD');
+  });
+  it.each(['BTC', '', null, 1, undefined])('rejects invalid currency %j', async preferredCurrency => {
+    await request(app.getHttpServer() as Server).patch('/auth/currency').set('Authorization', 'Bearer test')
+      .send({ preferredCurrency }).expect(400);
+    expect(profile.updateCurrency).not.toHaveBeenCalled();
   });
   it.each(['es', 'en', 'fr', 'pt'])('saves language %s only for the authenticated identity', async (preferredLanguage) => {
     profile.updateLanguage.mockResolvedValue({ preferredLanguage });

@@ -27,6 +27,7 @@ import { VisitNotifications1792886400000 } from './migrations/1792886400000-visi
 import { VisitAutomation1792972800000 } from './migrations/1792972800000-visit-automation';
 import { VisitModule } from './visit/visit.module';
 import { CatalogBootstrap } from './common/catalog-bootstrap';
+import { CommentRatings1793059200000 } from './migrations/1793059200000-comment-ratings';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { CatalogBootstrap } from './common/catalog-bootstrap';
         Visits1792800000000,
         VisitNotifications1792886400000,
         VisitAutomation1792972800000,
+        CommentRatings1793059200000,
       ],
       // Development already synchronizes entities; production applies versioned migrations.
       migrationsRun: process.env.DB_SYNCHRONIZE === 'false',

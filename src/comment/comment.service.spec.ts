@@ -23,6 +23,33 @@ describe('Property comments', () => {
     expect(test.comments.create).toHaveBeenCalledWith({ content: 'Buena experiencia', property: { id: 5 }, author: { id: 2 } });
   });
 
+  it('persists the score without accepting an author from the payload', async () => {
+    const test = setup();
+    const result = await test.service.create(5, 2, { content: 'Buen lugar', rating: 4 });
+    expect(result.rating).toBe(4);
+    expect(test.comments.create).toHaveBeenCalledWith({ content: 'Buen lugar', rating: 4, property: { id: 5 }, author: { id: 2 } });
+  });
+
+  it.each([0, 6, -1, 2.5, '5', true])('rejects invalid score %s', async rating => {
+    const errors = await validate(plainToInstance(CreateCommentDto, { content: 'Buen lugar', rating }));
+    expect(errors.some(error => error.property === 'rating')).toBe(true);
+  });
+
+  it.each([1, 5])('accepts score boundary %s', async rating => {
+    expect(await validate(plainToInstance(CreateCommentDto, { content: 'Buen lugar', rating }))).toHaveLength(0);
+  });
+
+  it('requests only visible comments and exposes their score without private author fields', async () => {
+    const find = jest.fn().mockResolvedValue([{ id: 1, content: 'Buen lugar', rating: 5, createdAt: new Date(), author: { id: 2, name: 'José', email: 'private@example.test' } }]);
+    const service = new CommentService({ getRepository: (entity: unknown) => entity === Property
+      ? { findOneBy: jest.fn().mockResolvedValue({ id: 5 }) } : { find },
+    } as unknown as DataSource);
+    const result = await service.findByProperty(5);
+    expect(find).toHaveBeenCalledWith(expect.objectContaining({ where: { property: { id: 5 }, hidden: false }, select: expect.objectContaining({ rating: true }) }));
+    expect(result[0]).toMatchObject({ rating: 5, author: { id: 2, name: 'José' } });
+    expect(result[0].author).not.toHaveProperty('email');
+  });
+
   it.each([1, 3])('rejects user %s who is not the linked tenant', async (userId) => {
     const test = setup();
     await expect(test.service.create(5, userId, { content: 'Texto' })).rejects.toBeInstanceOf(ForbiddenException);

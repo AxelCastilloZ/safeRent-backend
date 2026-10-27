@@ -61,6 +61,15 @@ export class ProfileService {
     if (!result.affected) throw new NotFoundException({ code: "USER_UNAVAILABLE", message: "Usuario no disponible." });
     return { preferredLanguage };
   }
+  async updateCurrency(id: number, preferredCurrency: string) {
+    validateProfileCurrency(undefined, preferredCurrency);
+    const result = await this.db.getRepository(User).update(
+      { id, isActive: true }, { preferredCurrency },
+    );
+    if (!result.affected) throw new NotFoundException({ code: 'USER_UNAVAILABLE', message: 'Usuario no disponible.' });
+    return { preferredCurrency, resolvedCurrency: preferredCurrency, currencySource: 'preference' as const };
+  }
+
   private async limit(id: number) {
     const key = createHash('sha256')
       .update(`account-security:${id}`)
