@@ -52,7 +52,7 @@ export class SavedPropertyService {
       status: property.status,
       typeOfProperty: property.typeOfProperty,
       services: property.services,
-      files: (property.files ?? []).map(({ path, mimeType }) => ({ path, mimeType })),
+      files: (property.files ?? []).map(({ path, mimeType, url }) => ({ path, mimeType, url })),
       owner: { id: property.owner.id, name: property.owner.name },
       // Solo si está reservada, no a nombre de quién.
       reserved: Boolean(property.reservedTenantId),
@@ -64,8 +64,8 @@ export class SavedPropertyService {
   /** Guarda una propiedad activa que no sea del propio usuario. Idempotente: guardar dos veces no duplica. */
   async save(userId: number, propertyId: number) {
     const property = await this.propertyRepo.findOneBy({ id: propertyId });
-    if (!property || property.status !== PropertyStatus.ACTIVE) throw new NotFoundException('Propiedad no disponible');
-    if (property.ownerId === userId) throw new BadRequestException('No puedes guardar tu propia propiedad');
+    if (!property || property.status !== PropertyStatus.ACTIVE) throw new NotFoundException({ code: "API_PROPIEDAD_NO_DISPONIBLE", message: 'Propiedad no disponible', params: {  } });
+    if (property.ownerId === userId) throw new BadRequestException({ code: "API_NO_PUEDES_GUARDAR_TU_PROPIA_PROPIEDAD", message: 'No puedes guardar tu propia propiedad', params: {  } });
 
     await this.insertIgnoringDuplicates(userId, [propertyId]);
     return { propertyId, saved: true };

@@ -11,7 +11,7 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "node dist/src/main.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -24,7 +24,11 @@
     "currency:check-db": "node scripts/check-currency-db.cjs",
     "currency:convert": "node scripts/currency.cjs convert",
     "dropbox:connect": "node scripts/dropbox-connect.cjs",
-    "dropbox:rename-folders": "node scripts/dropbox-rename-folders.cjs"
+    "dropbox:rename-folders": "node scripts/dropbox-rename-folders.cjs",
+    "dropbox:repair-files": "node scripts/dropbox-repair-files.cjs",
+    "i18n:check-db": "node scripts/check-i18n-db.cjs",
+    "i18n:check-flows": "node scripts/preview-i18n.cjs --check",
+    "i18n:preview": "node scripts/preview-i18n.cjs --fixtures"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

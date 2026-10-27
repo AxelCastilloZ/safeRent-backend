@@ -18,7 +18,7 @@ jest.mock('../user/user.service', () => ({ UserService: class {} }));
 const validProfile = { name: 'José', surname1: 'Pérez', surname2: '', email: 'jose@example.com', phoneNumber: '88888888', birthdate: '2000-01-01' };
 describe('Authenticated profile HTTP contract', () => {
   let app: INestApplication;
-  const profile = { photo: jest.fn().mockResolvedValue({ id: 7, profilePhotoUrl: "https://example.com/photo" }), get: jest.fn(), update: jest.fn(), changePassword: jest.fn() };
+  const profile = { get: jest.fn(), update: jest.fn(), changePassword: jest.fn(), updateLanguage: jest.fn() };
   beforeEach(async () => {
     jest.clearAllMocks();
     profile.get.mockResolvedValue({ id: 7, ...validProfile });
@@ -36,27 +36,27 @@ describe('Authenticated profile HTTP contract', () => {
     await app.init();
   });
   afterEach(async () => { await app.close(); });
-  it('protects photo uploads and deletion with authentication', async () => {
-    await request(app.getHttpServer() as Server).post('/auth/profile/photo').expect(401);
-    await request(app.getHttpServer() as Server).delete('/auth/profile/photo').expect(401);
-    expect(profile.photo).not.toHaveBeenCalled();
-  });
-  it('uploads photos for the authenticated identity', async () => {
-    await request(app.getHttpServer() as Server).post('/auth/profile/photo?userId=99').set('Authorization', 'Bearer test').attach('file', Buffer.from('photo'), { filename: 'profile.jpg', contentType: 'image/jpeg' }).expect(201);
-    expect(profile.photo).toHaveBeenCalledWith(7, expect.objectContaining({ mimetype: 'image/jpeg', buffer: expect.any(Buffer) }));
-  });
-  it('rejects missing files and forbidden formats', async () => {
-    await request(app.getHttpServer() as Server).post('/auth/profile/photo').set('Authorization', 'Bearer test').expect(400);
-    await request(app.getHttpServer() as Server).post('/auth/profile/photo').set('Authorization', 'Bearer test').attach('file', Buffer.from('pdf'), { filename: 'document.pdf', contentType: 'application/pdf' }).expect(400);
-    expect(profile.photo).not.toHaveBeenCalled();
-  });
-  it('rejects profile images larger than 5 MB', async () => {
-    await request(app.getHttpServer() as Server).post('/auth/profile/photo').set('Authorization', 'Bearer test').attach('file', Buffer.alloc(5 * 1024 * 1024 + 1), { filename: 'large.jpg', contentType: 'image/jpeg' }).expect(413);
-    expect(profile.photo).not.toHaveBeenCalled();
+  it('does not expose profile photo upload or deletion routes', async () => {
+    await request(app.getHttpServer() as Server).post('/auth/profile/photo').set('Authorization', 'Bearer test').expect(404);
+    await request(app.getHttpServer() as Server).delete('/auth/profile/photo').set('Authorization', 'Bearer test').expect(404);
   });
   it('requires authentication to view the profile', async () => {
     await request(app.getHttpServer() as Server).get('/auth/profile').expect(401);
     expect(profile.get).not.toHaveBeenCalled();
+  });
+  it('requires authentication to change the language', async () => {
+    await request(app.getHttpServer() as Server).patch('/auth/language').send({ preferredLanguage: 'fr' }).expect(401);
+    expect(profile.updateLanguage).not.toHaveBeenCalled();
+  });
+  it.each(['es', 'en', 'fr', 'pt'])('saves language %s only for the authenticated identity', async (preferredLanguage) => {
+    profile.updateLanguage.mockResolvedValue({ preferredLanguage });
+    await request(app.getHttpServer() as Server).patch('/auth/language').set('Authorization', 'Bearer test')
+      .send({ preferredLanguage, id: 99, roles: ['ADMIN'] }).expect(200, { preferredLanguage });
+    expect(profile.updateLanguage).toHaveBeenCalledWith(7, preferredLanguage);
+  });
+  it.each(['de', 'pt-BR', '', null, ['en'], 1, undefined])('rejects invalid language %j', async (preferredLanguage) => {
+    await request(app.getHttpServer() as Server).patch('/auth/language').set('Authorization', 'Bearer test').send({ preferredLanguage }).expect(400);
+    expect(profile.updateLanguage).not.toHaveBeenCalled();
   });
   it('reads only the authenticated identity', async () => {
     await request(app.getHttpServer() as Server).get('/auth/profile?id=99').set('Authorization', 'Bearer test').expect(200);

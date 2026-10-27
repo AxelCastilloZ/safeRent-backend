@@ -1,6 +1,3 @@
-import { BadRequestException, Delete, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { uploadOptions } from '../dropbox/upload-options';
 import {
   Body,
   Controller,
@@ -23,6 +20,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ProfileService } from './profile.service';
 import { ChangePasswordDto, UpdateProfileDto } from './dto/profile.dto';
 import { getProfileCurrencyOptions } from '../currency/profile-currency';
+import { UpdateLanguageDto } from './dto/language.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -31,21 +29,16 @@ export class AuthController {
   @Get('profile')
   getProfile(@Req() request: AuthRequest) { return this.profile.get(request.user.id); }
 
-  @Post('profile/photo')
-  @UseInterceptors(FileInterceptor('file', uploadOptions(['image/jpeg', 'image/png', 'image/webp'], 5)))
-  uploadPhoto(@Req() request: AuthRequest, @UploadedFile() file?: Express.Multer.File) {
-    if (!file?.buffer?.length) throw new BadRequestException('Selecciona una foto.');
-    return this.profile.photo(request.user.id, file);
-  }
-
-  @Delete('profile/photo')
-  deletePhoto(@Req() request: AuthRequest) { return this.profile.photo(request.user.id); }
-
   @Get('profile-options')
   getProfileOptions() { return getProfileCurrencyOptions(); }
 
   @Patch('profile')
   updateProfile(@Req() request: AuthRequest, @Body() dto: UpdateProfileDto) { return this.profile.update(request.user.id, dto); }
+
+  @Patch('language')
+  updateLanguage(@Req() request: AuthRequest, @Body() dto: UpdateLanguageDto) {
+    return this.profile.updateLanguage(request.user.id, dto.preferredLanguage);
+  }
 
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
@@ -55,7 +48,8 @@ export class AuthController {
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   forgotPassword(@Body() dto: ForgotPasswordDto, @Req() request: Request) {
-    return this.recovery.request(dto.identifier, request.ip ?? request.socket.remoteAddress ?? 'unknown');
+    const ip = request.ip ?? request.socket.remoteAddress ?? 'unknown';
+    return request.headers['accept-language'] ? this.recovery.request(dto.identifier, ip, request.headers['accept-language']) : this.recovery.request(dto.identifier, ip);
   }
 
   @Public()

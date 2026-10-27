@@ -8,6 +8,7 @@ import { IconDescription } from './entities/icon-description.entity';
 import { User } from '../user/entities/user.entity';
 import { ServiceService } from '../service/service.service';
 import { UserService } from '../user/user.service';
+import { PropertyStatus } from './property-status.enum';
 
 describe('Public property details', () => {
   const findOne = jest.fn();
@@ -26,7 +27,7 @@ describe('Public property details', () => {
     });
     const result = await service.findPublic(9);
     expect(findOne).toHaveBeenCalledWith({
-      where: { id: 9, isActive: true },
+      where: { id: 9, status: PropertyStatus.ACTIVE },
       relations: { files: true, iconDescriptions: true },
     });
     expect(result.owner).toEqual({ id: 2, name: 'Ana' });
@@ -35,5 +36,11 @@ describe('Public property details', () => {
   it('returns not found for an unpublished or missing property', async () => {
     findOne.mockResolvedValue(null);
     await expect(service.findPublic(9)).rejects.toBeInstanceOf(NotFoundException);
+  });
+  it('preserves the Dropbox URL in public photos without exposing private metadata', async () => {
+    const url = 'https://www.dropbox.com/scl/fi/test/photo.jpg?raw=1';
+    findOne.mockResolvedValue({ id: 9, owner: { id: 2, name: 'Ana' }, files: [{ path: '/saferent/propiedades/casa-9/fotos/photo.jpg', mimeType: 'image/jpeg', url, uploadedBy: 'private' }] });
+    const result = await service.findPublic(9);
+    expect(result.files).toEqual([{ path: '/saferent/propiedades/casa-9/fotos/photo.jpg', mimeType: 'image/jpeg', url }]);
   });
 });

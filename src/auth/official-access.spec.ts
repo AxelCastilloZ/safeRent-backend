@@ -67,9 +67,10 @@ describe('Official role and resource access', () => {
     await app.init();
   });
   afterAll(async () => { await app.close(); });
-  it('keeps the catalog public but requires login to select a property', async () => {
+  it('keeps catalog/details public but requires login to contact the owner', async () => {
     await request(app.getHttpServer() as Server).get('/properties').expect(200);
-    await request(app.getHttpServer() as Server).get('/properties/active/5').expect(401);
+    await request(app.getHttpServer() as Server).get('/properties/active/5').expect(200);
+    await request(app.getHttpServer() as Server).post('/conversations').send({ propertyId: 5 }).expect(401);
     await request(app.getHttpServer() as Server).get('/properties/active/5').set('x-test-actor', 'client').expect(200);
   });
   it('does not make role creation public', async () => {

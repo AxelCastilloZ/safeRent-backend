@@ -17,20 +17,11 @@ function fixture() {
   return { user, repo, query, manager, service: new ProfileService(db as DataSource), db };
 }
 describe('Self-service account security', () => {
-  it('stores profile photos in a folder with the full user name and ID', async () => {
-    const { db, user, manager } = fixture();
-    user.name = 'José'; user.surname1 = 'Pérez'; user.surname2 = 'Solís';
-    const storage = { upload: jest.fn().mockResolvedValue({ path: '/saferent/usuarios/jose-perez-solis-7/perfil/photo.jpg', url: 'https://example.com/photo' }), delete: jest.fn() };
-    const file = { mimetype: 'image/jpeg', buffer: Buffer.from('photo') } as Express.Multer.File;
-    await new ProfileService(db, storage as never).photo(7, file);
-    expect(storage.upload).toHaveBeenCalledWith(file, 'Usuarios/jose-perez-solis-7/Perfil');
-    expect(manager.update).toHaveBeenCalledWith(User, 7, { profilePhotoPath: '/saferent/usuarios/jose-perez-solis-7/perfil/photo.jpg', profilePhotoUrl: 'https://example.com/photo' });
-  });
   it('never exposes password hash or session security fields', async () => {
-    const { service, user } = fixture(); user.password = 'hash';
+    const { service, user } = fixture(); user.password = 'hash'; user.profilePhotoUrl = 'https://example.com/legacy-photo';
     const result = await service.get(7);
     expect(result.idCard).toBe('001234567');
-    for (const key of ['password','sessionVersion','passwordChangedAt']) expect(result).not.toHaveProperty(key);
+    for (const key of ['password','sessionVersion','passwordChangedAt','profilePhotoUrl','profilePhotoPath']) expect(result).not.toHaveProperty(key);
   });
   it('updates only allowed personal fields', async () => {
     const { service, manager } = fixture();

@@ -84,6 +84,12 @@ describe('SavedPropertyService', () => {
   });
 
   describe('list', () => {
+    it('preserves Dropbox URLs in saved property cards', async () => {
+      const file = { path: '/saferent/propiedades/casa-5/fotos/photo.jpg', mimeType: 'image/jpeg', url: 'https://www.dropbox.com/photo?raw=1' };
+      savedRepo.find.mockResolvedValue([{ createdAt: new Date(), property: { ...activeProperty, files: [{ ...file, uploadedBy: 'private' }], owner: { id: 2, name: 'Ana' } } }]);
+      expect((await service.list(tenantId))[0].files).toEqual([file]);
+    });
+
     it('shows card data, flags unavailable ones, and never exposes who reserved or the owner contact', async () => {
       const savedAt = new Date('2026-10-21T10:00:00Z');
       const base = {

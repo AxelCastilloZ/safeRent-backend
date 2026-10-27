@@ -20,7 +20,7 @@ export class AuthService {
     const roleName = AppRole.CLIENT;
     const role = await this.roles.findActiveByName(roleName);
     if (!role) {
-      throw new ServiceUnavailableException(`El rol ${roleName} no está disponible`);
+      throw new ServiceUnavailableException({ code: "API_EL_ROL_NO_ESTA_DISPONIBLE", message: `El rol ${roleName} no está disponible`, params: { v0: roleName } });
     }
 
     try {
@@ -47,7 +47,7 @@ export class AuthService {
         error instanceof QueryFailedError &&
         (error.driverError as { code?: string }).code === '23505'
       ) {
-        throw new ConflictException('La identificación o el correo ya están registrados');
+        throw new ConflictException({ code: "IDENTITY_REGISTERED", message: "La identificación o el correo ya están registrados" });
       }
       throw error;
     }
@@ -61,7 +61,7 @@ export class AuthService {
       !user.isActive ||
       !(await bcrypt.compare(dto.password, user.password))
     ) {
-      throw new UnauthorizedException('Credenciales incorrectas');
+      throw new UnauthorizedException({ code: "INVALID_CREDENTIALS", message: "Credenciales incorrectas" });
     }
 
     return {

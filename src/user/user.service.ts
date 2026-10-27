@@ -35,7 +35,7 @@ export class UserService {
 
     const role= await this.rolesService.findOne(roleId);
 
-    if (!role.isActive) throw new BadRequestException('El rol está desactivado');
+    if (!role.isActive) throw new BadRequestException({ code: "API_EL_ROL_ESTA_DESACTIVADO", message: 'El rol está desactivado', params: {  } });
     const newUser = this.userRepo.create({...rest, password:hashed, Roles: [role]});
     const saved = await this.userRepo.save(newUser);
     return this.toAdminView(saved);
@@ -79,12 +79,12 @@ export class UserService {
   async addRole(id: number, roleId: number) {
     const user = await this.userRepo.findOne({ where: { id }, relations: { Roles: true } });
     if (!user) {
-      throw new NotFoundException(`User with Id ${id} not found`);
+      throw new NotFoundException({ code: "API_USER_WITH_ID_NOT_FOUND", message: `User with Id ${id} not found`, params: { v0: id } });
     }
 
     const role = await this.rolesService.findOne(roleId);
 
-    if (!role.isActive) throw new BadRequestException('El rol está desactivado');
+    if (!role.isActive) throw new BadRequestException({ code: "API_EL_ROL_ESTA_DESACTIVADO", message: 'El rol está desactivado', params: {  } });
     if (!user.Roles.some((existing) => existing.id === role.id)) {
       user.Roles = [...user.Roles, role];
       await this.userRepo.save(user);
@@ -97,11 +97,11 @@ export class UserService {
   async removeRole(id: number, roleId: number) {
     const user = await this.userRepo.findOne({ where: { id }, relations: { Roles: true } });
     if (!user) {
-      throw new NotFoundException(`User with Id ${id} not found`);
+      throw new NotFoundException({ code: "API_USER_WITH_ID_NOT_FOUND", message: `User with Id ${id} not found`, params: { v0: id } });
     }
 
     if (user.Roles.length <= 1 && user.Roles.some((role) => role.id === roleId)) {
-      throw new ConflictException('El usuario debe conservar al menos un rol.');
+      throw new ConflictException({ code: "API_EL_USUARIO_DEBE_CONSERVAR_AL_MENOS_UN_ROL", message: 'El usuario debe conservar al menos un rol.', params: {  } });
     }
 
     user.Roles = user.Roles.filter((role) => role.id !== roleId);
@@ -117,7 +117,7 @@ export class UserService {
   async ensureRole(id: number, roleName: string): Promise<void> {
     const user = await this.userRepo.findOne({ where: { id }, relations: { Roles: true } });
     if (!user) {
-      throw new NotFoundException(`User with Id ${id} not found`);
+      throw new NotFoundException({ code: "API_USER_WITH_ID_NOT_FOUND", message: `User with Id ${id} not found`, params: { v0: id } });
     }
 
     if (user.Roles.some((role) => role.name === roleName)) {
@@ -137,7 +137,7 @@ export class UserService {
     const user = await this.userRepo.findOneBy({ id });
 
     if (!user) {
-      throw new NotFoundException(`User with Id ${id} not found`);
+      throw new NotFoundException({ code: "API_USER_WITH_ID_NOT_FOUND", message: `User with Id ${id} not found`, params: { v0: id } });
     }
 
     return user;
@@ -158,7 +158,7 @@ export class UserService {
     });
 
     if (user) {
-      throw new ConflictException(`User with Card Id ${idCard} or email ${email} already exists`);
+      throw new ConflictException({ code: "API_USER_WITH_CARD_ID_OR_EMAIL_ALREADY_EXISTS", message: `User with Card Id ${idCard} or email ${email} already exists`, params: { v0: idCard, v1: email } });
     }
 
     return true;

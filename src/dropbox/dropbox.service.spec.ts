@@ -52,15 +52,55 @@ describe('Dropbox storage', () => {
     expect(Buffer.from(options.body as Uint8Array)).toEqual(file.buffer);
   });
 
-  it('reuses the access token and never shares private attachments', async () => {
-    await service.upload(file, 'Mensajes/1/Adjuntos', false);
-    await service.upload(file, 'Mensajes/2/Adjuntos', false);
+  it('reuses the access token for property uploads', async () => {
+    await service.upload(file, 'Propiedades/1/Fotos');
+    await service.upload(file, 'Propiedades/2/Fotos');
     expect(
       mock.mock.calls.filter(([url]) => String(url).endsWith('/oauth2/token')),
     ).toHaveLength(1);
+  });
+  it('recovers an existing link without creating another shared link', async () => {
+    const normal = mock.getMockImplementation()!;
+    mock.mockImplementation((url: string) =>
+      url.endsWith('/sharing/list_shared_links')
+        ? Promise.resolve(
+            Response.json({
+              links: [{ url: 'https://www.dropbox.com/photo.jpg?dl=0' }],
+            }),
+          )
+        : normal(url),
+    );
+    await expect(
+      service.existingSharedLink('/saferent/photo.jpg'),
+    ).resolves.toBe('https://www.dropbox.com/photo.jpg?raw=1');
     expect(
-      mock.mock.calls.some(([url]) => String(url).includes('/sharing/')),
+      mock.mock.calls.some(([url]) =>
+        String(url).endsWith('/sharing/create_shared_link_with_settings'),
+      ),
     ).toBe(false);
+  });
+  it('reuses a shared link when Dropbox reports a conflict', async () => {
+    const normal = mock.getMockImplementation()!;
+    mock.mockImplementation((url: string) =>
+      url.endsWith('/sharing/create_shared_link_with_settings')
+        ? Promise.resolve(
+            Response.json(
+              {
+                error: {
+                  '.tag': 'shared_link_already_exists',
+                  shared_link_already_exists: {
+                    metadata: { url: 'https://www.dropbox.com/photo.jpg?dl=0' },
+                  },
+                },
+              },
+              { status: 409 },
+            ),
+          )
+        : normal(url),
+    );
+    await expect(service.sharedLink('/saferent/photo.jpg')).resolves.toBe(
+      'https://www.dropbox.com/photo.jpg?raw=1',
+    );
   });
 
   it('cleans up an upload when shared-link creation fails', async () => {
@@ -91,7 +131,7 @@ describe('Dropbox storage', () => {
         : normal(url),
     );
     await expect(
-      service.upload(file, 'Usuarios/1/Perfil'),
+      service.upload(file, 'Propiedades/1/Fotos'),
     ).resolves.toHaveProperty('rev');
     mock.mockImplementation((url: string) =>
       url.endsWith('create_folder_v2')
@@ -103,22 +143,24 @@ describe('Dropbox storage', () => {
           )
         : normal(url),
     );
-    await expect(service.upload(file, 'Usuarios/1/Perfil')).rejects.toThrow(
+    await expect(service.upload(file, 'Propiedades/1/Fotos')).rejects.toThrow(
       'carpeta',
     );
   });
 
   it('fails without credentials before sending file contents', async () => {
     service = new DropboxService(new ConfigService({}));
-    await expect(service.upload(file, 'Usuarios/1/Perfil')).rejects.toThrow(
+    await expect(service.upload(file, 'Propiedades/1/Fotos')).rejects.toThrow(
       'El almacenamiento Dropbox aún no está configurado.',
     );
     expect(mock).not.toHaveBeenCalled();
   });
 
   it('preserves authentication errors instead of masking them as network failures', async () => {
-    mock.mockResolvedValue(Response.json({ error: 'invalid_grant' }, { status: 400 }));
-    await expect(service.upload(file, 'Usuarios/1/Perfil')).rejects.toThrow(
+    mock.mockResolvedValue(
+      Response.json({ error: 'invalid_grant' }, { status: 400 }),
+    );
+    await expect(service.upload(file, 'Propiedades/1/Fotos')).rejects.toThrow(
       'No se pudo conectar con Dropbox. Intenta nuevamente.',
     );
     expect(mock).toHaveBeenCalledTimes(1);
@@ -131,7 +173,7 @@ describe('Dropbox storage', () => {
       }
       throw new TypeError('fetch failed');
     });
-    await expect(service.upload(file, 'Usuarios/1/Perfil')).rejects.toThrow(
+    await expect(service.upload(file, 'Propiedades/1/Fotos')).rejects.toThrow(
       'Dropbox no está disponible. Intenta nuevamente.',
     );
   });

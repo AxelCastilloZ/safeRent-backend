@@ -47,4 +47,9 @@ describe('Tenant reserved properties', () => {
     find.mockResolvedValue([]);
     await expect(service.findByTenant(7)).resolves.toEqual([]);
   });
+  it('preserves Dropbox URLs for reserved property photos', async () => {
+    const file = { path: '/saferent/propiedades/casa-5/fotos/photo.jpg', mimeType: 'image/jpeg', url: 'https://www.dropbox.com/photo?raw=1' };
+    find.mockResolvedValue([{ id: 5, files: [{ ...file, uploadedBy: 'private' }], owner: { id: 1, name: 'Ana' } }]);
+    expect((await service.findByTenant(7))[0].files).toEqual([file]);
+  });
 });

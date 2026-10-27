@@ -1,6 +1,3 @@
-import { Optional } from '@nestjs/common';
-import { DropboxService } from '../dropbox/dropbox.service';
-import { resourceFolder } from '../dropbox/resource-folder';
 import {
   BadRequestException,
   ConflictException,
@@ -14,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../user/entities/user.entity';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { ChangePasswordDto, UpdateProfileDto } from './dto/profile.dto';
+import { SUPPORTED_LANGUAGES, type SupportedLanguage } from './dto/language.dto';
 import {
   resolveProfileCurrency,
   validateProfileCurrency,
@@ -21,11 +19,10 @@ import {
 
 @Injectable()
 export class ProfileService {
-  constructor(private readonly db: DataSource, @Optional() private readonly dropbox?: DropboxService) {}
+  constructor(private readonly db: DataSource) {}
   private view(user: User) {
     return {
       id: user.id,
-      profilePhotoUrl: user.profilePhotoUrl ?? null,
       idCard: user.idCard,
       name: user.name,
       surname1: user.surname1,
@@ -42,6 +39,7 @@ export class ProfileService {
       createdAt: user.createdAt,
       countryCode: user.countryCode ?? null,
       preferredCurrency: user.preferredCurrency ?? null,
+      preferredLanguage: user.preferredLanguage ?? null,
       ...resolveProfileCurrency(user.countryCode, user.preferredCurrency),
     };
   }
@@ -49,34 +47,20 @@ export class ProfileService {
     const user = await this.db
       .getRepository(User)
       .findOne({ where: { id, isActive: true }, relations: { Roles: true } });
-    if (!user) throw new NotFoundException('Usuario no disponible.');
+    if (!user) throw new NotFoundException({ code: "USER_UNAVAILABLE", message: "Usuario no disponible." });
     return this.view(user);
   }
-  async photo(id: number, file?: Express.Multer.File) {
-    if (!this.dropbox) throw new BadRequestException('Almacenamiento no disponible.');
-    const storage = this.dropbox;
-    let uploaded: string | undefined;
-    let oldPath: string | null | undefined;
-    try {
-      await this.db.transaction(async manager => {
-        const user = await manager.getRepository(User).createQueryBuilder('user')
-          .addSelect('user.profilePhotoPath').where('user.id = :id AND user.isActive = true', { id })
-          .setLock('pessimistic_write').getOne();
-        if (!user) throw new NotFoundException('Usuario no disponible.');
-        oldPath = user.profilePhotoPath;
-        const fullName = [user.name, user.surname1, user.surname2].filter(Boolean).join(' ');
-        const stored = file ? await storage.upload(file, `Usuarios/${resourceFolder(fullName, user.id, 'usuario')}/Perfil`) : null;
-        uploaded = stored?.path;
-        await manager.update(User, id, { profilePhotoPath: stored?.path ?? null, profilePhotoUrl: stored?.url ?? null });
-      });
-    } catch (error) {
-      if (uploaded) await storage.delete(uploaded).catch(() => undefined);
-      throw error;
+  async updateLanguage(id: number, preferredLanguage: SupportedLanguage) {
+    if (!SUPPORTED_LANGUAGES.includes(preferredLanguage)) {
+      throw new BadRequestException({ code: 'LANGUAGE_UNSUPPORTED', message: 'Idioma no admitido.' });
     }
-    if (oldPath) await storage.delete(oldPath).catch(() => undefined);
-    return this.get(id);
+    const result = await this.db.getRepository(User).update(
+      { id, isActive: true },
+      { preferredLanguage },
+    );
+    if (!result.affected) throw new NotFoundException({ code: "USER_UNAVAILABLE", message: "Usuario no disponible." });
+    return { preferredLanguage };
   }
-
   private async limit(id: number) {
     const key = createHash('sha256')
       .update(`account-security:${id}`)
@@ -89,7 +73,7 @@ export class ProfileService {
     );
     if (rows[0].count > 10)
       throw new HttpException(
-        'Demasiados intentos. Intenta nuevamente en 15 minutos.',
+        { code: "TOO_MANY_ATTEMPTS", message: "Demasiados intentos. Intenta nuevamente en 15 minutos." },
         429,
       );
   }
@@ -105,14 +89,14 @@ export class ProfileService {
           .where('user.id = :id AND user.isActive = true', { id })
           .setLock('pessimistic_write')
           .getOne();
-        if (!user) throw new NotFoundException('Usuario no disponible.');
+        if (!user) throw new NotFoundException({ code: "USER_UNAVAILABLE", message: "Usuario no disponible." });
         if (dto.email !== user.email) {
           if (
             !dto.currentPassword ||
             !(await bcrypt.compare(dto.currentPassword, user.password))
           )
             throw new BadRequestException(
-              'Para cambiar el correo, indica tu contraseña actual correcta.',
+              { code: "EMAIL_PASSWORD_REQUIRED", message: "Para cambiar el correo, indica tu contraseña actual correcta." },
             );
           const duplicate = await manager
             .getRepository(User)
@@ -123,7 +107,7 @@ export class ProfileService {
             })
             .getOne();
           if (duplicate)
-            throw new ConflictException('El correo ya está registrado.');
+            throw new ConflictException({ code: "EMAIL_REGISTERED", message: "El correo ya está registrado." });
           await manager.update(
             PasswordResetToken,
             { userId: id, usedAt: IsNull() },
@@ -152,7 +136,7 @@ export class ProfileService {
         error instanceof QueryFailedError &&
         (error.driverError as { code?: string }).code === '23505'
       )
-        throw new ConflictException('El correo ya está registrado.');
+        throw new ConflictException({ code: "EMAIL_REGISTERED", message: "El correo ya está registrado." });
       throw error;
     }
     return this.get(id);
@@ -168,12 +152,12 @@ export class ProfileService {
         .where('user.id = :id AND user.isActive = true', { id })
         .setLock('pessimistic_write')
         .getOne();
-      if (!user) throw new NotFoundException('Usuario no disponible.');
+      if (!user) throw new NotFoundException({ code: "USER_UNAVAILABLE", message: "Usuario no disponible." });
       if (!(await bcrypt.compare(dto.currentPassword, user.password)))
-        throw new BadRequestException('La contraseña actual es incorrecta.');
+        throw new BadRequestException({ code: "CURRENT_PASSWORD_INVALID", message: "La contraseña actual es incorrecta." });
       if (await bcrypt.compare(dto.password, user.password))
         throw new BadRequestException(
-          'La nueva contraseña debe ser diferente de la actual.',
+          { code: "PASSWORD_UNCHANGED", message: "La nueva contraseña debe ser diferente de la actual." },
         );
       await manager.update(User, id, {
         password: await bcrypt.hash(dto.password, 10),

@@ -1,5 +1,20 @@
 # Recuperación de contraseña y Brevo
 
+## Actualización de internacionalización — 22 de octubre de 2026
+
+El transporte actual genera asunto, HTML y texto plano desde `src/mail/locales/{es,en,fr,pt}.json`.
+Ya no utiliza una plantilla externa ni requiere `BREVO_RESET_TEMPLATE_ID`; las referencias a plantillas
+en el historial inferior describen la implementación anterior. Se conservan el remitente verificado,
+la API key, TTL, cifrado de cola, límites y tokens de un solo uso.
+
+La cola cifra identificador e idioma solicitado por `Accept-Language`. El worker prioriza
+`User.preferredLanguage`, con respaldo al idioma de la solicitud y a español. Los trabajos cifrados
+anteriores que solo contienen el identificador siguen siendo compatibles. El enlace lleva `lang`
+además del token para abrir la interfaz en el idioma del correo.
+
+`check-brevo.cjs --remote` consulta únicamente cuenta y remitentes; no envía correos.
+El envío usa `subject`, `htmlContent` y `textContent` en vez de `templateId`/`params`.
+
 ## Estado e implementación
 
 Implementado: pantallas `/forgot-password` y `/reset-password?token=...`, servicios Axios, hooks React Query, DTOs NestJS, endpoints públicos, tokens SHA-256 de un solo uso, actualización con bcrypt (coste 10), revocación de sesiones y cola persistente de envío en PostgreSQL.
@@ -52,7 +67,7 @@ Solo backend; nunca exponer claves con prefijo VITE_. Plantilla de variables: `.
 - BREVO_API_KEY: API key de Brevo (no clave SMTP).
 - BREVO_SENDER_EMAIL: remitente verificado y activo.
 - BREVO_SENDER_NAME: nombre del remitente.
-- BREVO_RESET_TEMPLATE_ID: ID entero positivo de plantilla activa.
+- BREVO_RESET_TEMPLATE_ID: obsoleta; puede eliminarse, el transporte usa JSON locales.
 - FRONTEND_URL: origen HTTPS fijo en producción; HTTP permitido solo para localhost/loopback en desarrollo. No rutas, credenciales ni parámetros.
 - PASSWORD_RESET_TTL_MINUTES: 15 recomendado.
 - PASSWORD_RECOVERY_ENCRYPTION_KEY: 32 bytes aleatorios en hexadecimal (64 caracteres), compartida entre instancias y conservada entre reinicios. Se agregó una clave nueva al .env local, sin tocar JWT_SECRET. Rotarla invalida el cifrado de trabajos pendientes y las claves de contadores; los trabajos no descifrables se descartan con un log genérico.
@@ -64,7 +79,7 @@ node scripts/check-brevo.cjs
 node scripts/check-brevo.cjs --remote
 ```
 
-El primer comando valida formato; el segundo hace consultas de solo lectura a cuenta, remitentes y plantilla. Nunca muestra secretos ni envía correos. Las claves se leen directamente del .env local.
+El primer comando valida formato; el segundo hace consultas de solo lectura a cuenta y remitentes. Nunca muestra secretos ni envía correos. Las claves se leen directamente del .env local.
 
 Verificación realizada el 6 de octubre de 2026: las variables locales pasan formato. FRONTEND_URL corresponde a desarrollo local. Brevo respondió HTTP 401 indicando IP no autorizada: autorizar en Brevo la IP pública del equipo/servidor que ejecuta el backend y volver a ejecutar la verificación. El rechazo no demuestra que la API key sea incorrecta. No fue posible confirmar remitente ni plantilla mientras la IP siga bloqueada.
 

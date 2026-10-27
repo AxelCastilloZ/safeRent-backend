@@ -1,11 +1,18 @@
 import { Column, Entity, ManyToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { Property } from '../../property/entities/property.entity';
+import type { CatalogTranslationsDto } from '../../common/catalog-translations.dto';
 
 // Keep the existing table name when moving the entity out of PropertyModule.
 @Entity('service')
 export class Service {
   @PrimaryGeneratedColumn()
   id!: number;
+
+  @Column({ type: 'varchar', length: 64, nullable: true, unique: true })
+  catalogCode?: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  translations?: CatalogTranslationsDto | null;
 
   @Column({ type: 'varchar', length: 100, unique: true })
   name!: string;
