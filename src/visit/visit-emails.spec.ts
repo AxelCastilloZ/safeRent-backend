@@ -13,7 +13,9 @@ describe('Visit emails', () => {
       const email = buildVisitEmail(event, { ...data, reason: 'Motivo de prueba' }, language);
       const everything = [email.subject, email.title, email.footer, email.button.label, ...email.paragraphs].join(' ');
       expect(everything).not.toMatch(/{{|}}/);
-      expect(everything).toContain('Ana Pérez');
+      // El aviso de "propiedad reservada" no nombra a nadie: no tiene sentido señalar a la persona que reservó.
+      if (event !== 'CANCELLED_PROPERTY_RESERVED') expect(everything).toContain('Ana Pérez');
+      expect(everything).toContain('Casa en Nicoya');
       expect(email.subject.trim()).not.toBe('');
       expect(email.paragraphs.at(-1)).toContain('Motivo de prueba');
     }
@@ -21,9 +23,10 @@ describe('Visit emails', () => {
 
   it('sends each event to the other person and links to the right area', () => {
     expect(EMAIL_RECIPIENT).toEqual({
-      REQUESTED: 'owner', ACCEPTED: 'owner', CANCELLED_BY_TENANT: 'owner',
-      CONFIRMED: 'tenant', PROPOSED: 'tenant', CANCELLED_BY_OWNER: 'tenant',
+      REQUESTED: 'owner', ACCEPTED: 'owner', CANCELLED_BY_TENANT: 'owner', EXPIRED_PROPOSAL: 'owner', REMINDER_OWNER: 'owner', AUTO_CONFIRMED: 'owner',
+      CONFIRMED: 'tenant', PROPOSED: 'tenant', CANCELLED_BY_OWNER: 'tenant', EXPIRED_REQUEST: 'tenant', CANCELLED_PROPERTY_RESERVED: 'tenant', REMINDER_TENANT: 'tenant',
     });
+    expect(buildVisitEmail('CANCELLED_PROPERTY_RESERVED', data, 'es').button.path).toBe('/explorar');
     expect(buildVisitEmail('REQUESTED', data, 'es').button.path).toBe('/dashboard/owner/visits');
     expect(buildVisitEmail('CONFIRMED', data, 'es').button.path).toBe('/dashboard/visits');
   });

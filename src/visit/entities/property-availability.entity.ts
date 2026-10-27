@@ -21,6 +21,10 @@ export class PropertyAvailability {
   @Column({ type: 'jsonb' })
   rules!: AvailabilityRule[];
 
+  /** Si es true, las citas que piden los inquilinos quedan confirmadas al instante, sin que el propietario deba responder. */
+  @Column({ type: 'boolean', default: false })
+  autoConfirm!: boolean;
+
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt!: Date;
 

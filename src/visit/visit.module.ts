@@ -4,13 +4,14 @@ import { MailModule } from '../mail/mail.module';
 import { PropertyAvailability } from './entities/property-availability.entity';
 import { Visit } from './entities/visit.entity';
 import { VisitController } from './visit.controller';
+import { VisitJobsService } from './visit-jobs.service';
 import { VisitNotificationService } from './visit-notification.service';
 import { VisitService } from './visit.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Visit, PropertyAvailability]), MailModule],
   controllers: [VisitController],
-  providers: [VisitService, VisitNotificationService],
-  exports: [VisitService],
+  providers: [VisitService, VisitNotificationService, VisitJobsService],
+  exports: [VisitService, VisitNotificationService],
 })
 export class VisitModule {}

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS property_availability (
   "propertyId" integer NOT NULL,
   timezone varchar(64) NOT NULL,
   rules jsonb NOT NULL,
+  "autoConfirm" boolean NOT NULL DEFAULT false,
   "updatedAt" timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT uq_property_availability_property UNIQUE ("propertyId"),
   CONSTRAINT fk_property_availability_property FOREIGN KEY ("propertyId") REFERENCES property(id) ON DELETE CASCADE
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS visit (
   "expiresAt" timestamptz NULL,
   "confirmedAt" timestamptz NULL,
   "ownerNotifiedAt" timestamptz NULL,
+  "reminderSentAt" timestamptz NULL,
   "propertyId" integer NOT NULL,
   "tenantId" integer NOT NULL,
   "ownerId" integer NOT NULL,
@@ -38,6 +40,9 @@ CREATE TABLE IF NOT EXISTS visit (
 
 -- Para una base que ya tenía la tabla (fase 1): hora del último aviso por correo al propietario.
 ALTER TABLE visit ADD COLUMN IF NOT EXISTS "ownerNotifiedAt" timestamptz NULL;
+-- Fase 3: recordatorio enviado y confirmación automática.
+ALTER TABLE visit ADD COLUMN IF NOT EXISTS "reminderSentAt" timestamptz NULL;
+ALTER TABLE property_availability ADD COLUMN IF NOT EXISTS "autoConfirm" boolean NOT NULL DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_visit_owner_status ON visit ("ownerId", status);
 CREATE INDEX IF NOT EXISTS idx_visit_tenant_status ON visit ("tenantId", status);

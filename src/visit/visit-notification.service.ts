@@ -65,13 +65,21 @@ export class VisitNotificationService {
       const content = buildVisitEmail(event, {
         person, property: row.propertyTitle, when: new Date(row.scheduledAt), timezone: row.timezone,
         previous: row.previousScheduledAt ? new Date(row.previousScheduledAt) : null,
-        reason: event.startsWith('CANCELLED') ? row.cancelReason : null,
+        // Solo las cancelaciones hechas por una persona llevan motivo (la automática por reserva usa un código interno).
+        reason: event === 'CANCELLED_BY_OWNER' || event === 'CANCELLED_BY_TENANT' ? row.cancelReason : null,
       }, recipient.language);
       await this.mail.sendNotification(recipient.email, recipient.language ?? 'es', content);
       return true;
     } catch (error) {
       this.logger.warn(`No se pudo enviar el aviso ${event} de la cita ${visitId} (${(error as Error).name}).`);
       return false;
+    }
+  }
+
+  /** Avisa de las solicitudes y propuestas que vencieron sin respuesta: al inquilino si no respondió el propietario, y al revés. */
+  async notifyExpired(rows: { id: number; previousStatus: string }[]): Promise<void> {
+    for (const row of rows) {
+      await this.notify(row.id, row.previousStatus === 'COUNTER_PROPOSED' ? 'EXPIRED_PROPOSAL' : 'EXPIRED_REQUEST');
     }
   }
 

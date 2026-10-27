@@ -45,9 +45,9 @@ export class Visit {
   @Column({ type: 'varchar', length: 500, nullable: true })
   cancelReason?: string | null;
 
-  /** Quién canceló: 'TENANT' o 'OWNER'. */
+  /** Quién canceló: 'TENANT', 'OWNER' o 'SYSTEM' (por ejemplo, cuando la propiedad se reservó para otra persona). */
   @Column({ type: 'varchar', length: 10, nullable: true })
-  cancelledBy?: 'TENANT' | 'OWNER' | null;
+  cancelledBy?: 'TENANT' | 'OWNER' | 'SYSTEM' | null;
 
   /** Zona horaria de la propiedad cuando se creó la cita: la hora se muestra siempre en esa zona. */
   @Column({ type: 'varchar', length: 64 })
@@ -63,6 +63,10 @@ export class Visit {
   /** Última vez que se le avisó por correo al propietario de esta solicitud (inmediato o en un resumen). */
   @Column({ type: 'timestamptz', nullable: true })
   ownerNotifiedAt?: Date | null;
+
+  /** Cuándo se mandó el recordatorio de la cita (una sola vez). */
+  @Column({ type: 'timestamptz', nullable: true })
+  reminderSentAt?: Date | null;
 
   @Column({ type: 'int' })
   propertyId!: number;

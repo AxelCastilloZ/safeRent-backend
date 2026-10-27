@@ -27,6 +27,8 @@ async function main() {
   try {
     await runner.startTransaction();
     const manager = runner.manager;
+    // La base es compartida y puede tener citas reales: la prueba parte de cero dentro de su transacción (que se revierte).
+    await runner.query('DELETE FROM visit');
     if (!(await runner.hasColumn('visit', 'ownerNotifiedAt'))) throw new Error('Falta la columna visit.ownerNotifiedAt (reinicia el backend o aplica docs/visit-schema.sql)');
     const fake = {
       transaction: (work: (m: typeof manager) => unknown) => work(manager),

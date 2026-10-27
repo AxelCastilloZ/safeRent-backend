@@ -10,7 +10,9 @@ const TEXTS: Record<string, Record<string, string>> = { es, en, fr, pt };
 const LOCALES: Record<string, string> = { es: 'es-CR', en: 'en-US', fr: 'fr-FR', pt: 'pt-BR' };
 
 /** Qué pasó con la cita. Define a quién se le avisa y con qué texto. */
-export type VisitEmailEvent = 'REQUESTED' | 'CONFIRMED' | 'PROPOSED' | 'ACCEPTED' | 'CANCELLED_BY_OWNER' | 'CANCELLED_BY_TENANT';
+export type VisitEmailEvent =
+  | 'REQUESTED' | 'CONFIRMED' | 'PROPOSED' | 'ACCEPTED' | 'CANCELLED_BY_OWNER' | 'CANCELLED_BY_TENANT'
+  | 'EXPIRED_REQUEST' | 'EXPIRED_PROPOSAL' | 'CANCELLED_PROPERTY_RESERVED' | 'REMINDER_TENANT' | 'REMINDER_OWNER' | 'AUTO_CONFIRMED';
 
 /** A quién le toca el aviso de cada evento: a la otra persona, nunca a quien hizo la acción. */
 export const EMAIL_RECIPIENT: Record<VisitEmailEvent, 'owner' | 'tenant'> = {
@@ -20,7 +22,16 @@ export const EMAIL_RECIPIENT: Record<VisitEmailEvent, 'owner' | 'tenant'> = {
   ACCEPTED: 'owner',
   CANCELLED_BY_OWNER: 'tenant',
   CANCELLED_BY_TENANT: 'owner',
+  EXPIRED_REQUEST: 'tenant',
+  EXPIRED_PROPOSAL: 'owner',
+  CANCELLED_PROPERTY_RESERVED: 'tenant',
+  REMINDER_TENANT: 'tenant',
+  REMINDER_OWNER: 'owner',
+  AUTO_CONFIRMED: 'owner',
 };
+
+/** Eventos cuyo botón no lleva a las citas. */
+const CUSTOM_PATH: Partial<Record<VisitEmailEvent, string>> = { CANCELLED_PROPERTY_RESERVED: '/explorar' };
 
 const fill = (template: string, params: Record<string, string | number>) =>
   template.replace(/{{\s*(\w+)\s*}}/g, (_, key: string) => String(params[key] ?? ''));
@@ -58,7 +69,7 @@ export function buildVisitEmail(event: VisitEmailEvent, data: VisitEmailData, la
     subject: fill(text[`visit_${event}_subject`], params),
     title: fill(text[`visit_${event}_title`], params),
     paragraphs,
-    button: { label: text[`visit_${event}_button`], path: EMAIL_RECIPIENT[event] === 'owner' ? '/dashboard/owner/visits' : '/dashboard/visits' },
+    button: { label: text[`visit_${event}_button`], path: CUSTOM_PATH[event] ?? (EMAIL_RECIPIENT[event] === 'owner' ? '/dashboard/owner/visits' : '/dashboard/visits') },
     footer: text.visit_footer,
   };
 }

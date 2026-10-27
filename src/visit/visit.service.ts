@@ -64,8 +64,8 @@ export class VisitService {
   private async availabilityOf(reader: Reader, propertyId: number) {
     const row = await reader.getRepository(PropertyAvailability).findOneBy({ propertyId });
     return row
-      ? { timezone: row.timezone, rules: row.rules, isDefault: false }
-      : { timezone: DEFAULT_TIMEZONE, rules: DEFAULT_RULES, isDefault: true };
+      ? { timezone: row.timezone, rules: row.rules, isDefault: false, autoConfirm: row.autoConfirm }
+      : { timezone: DEFAULT_TIMEZONE, rules: DEFAULT_RULES, isDefault: true, autoConfirm: false };
   }
 
   private async basicProperty(reader: Reader, propertyId: number, lock = false) {
@@ -91,8 +91,9 @@ export class VisitService {
     if (!property) throw errors.propertyUnavailable();
     if (property.ownerId !== ownerId) throw errors.onlyPropertyOwner();
 
-    await this.dataSource.getRepository(PropertyAvailability).upsert({ propertyId, timezone: dto.timezone, rules }, ['propertyId']);
-    return { timezone: dto.timezone, rules, isDefault: false, slotMinutes: SLOT_MINUTES };
+    const autoConfirm = dto.autoConfirm ?? false;
+    await this.dataSource.getRepository(PropertyAvailability).upsert({ propertyId, timezone: dto.timezone, rules, autoConfirm }, ['propertyId']);
+    return { timezone: dto.timezone, rules, isDefault: false, autoConfirm, slotMinutes: SLOT_MINUTES };
   }
 
   /** Cada ventana debe terminar después de empezar y no solaparse con otra del mismo día. */
@@ -123,11 +124,12 @@ export class VisitService {
       this.availabilityOf(this.dataSource, propertyId),
       this.dataSource.getRepository(Visit).createQueryBuilder('visit')
         .select(['visit.scheduledAt'])
-        .where('visit.propertyId = :propertyId', { propertyId })
-        .andWhere('visit.scheduledAt >= :rangeStart AND visit.scheduledAt < :rangeEnd', { rangeStart, rangeEnd })
-        .andWhere(`(visit.status = :confirmed OR (visit.status IN (:...waiting) AND visit.expiresAt > :now))`, {
-          confirmed: VisitStatus.CONFIRMED, waiting: EXPIRING_STATUSES, now,
-        })
+        .where('visit.scheduledAt >= :rangeStart AND visit.scheduledAt < :rangeEnd', { rangeStart, rangeEnd })
+        // Ocupado = retenido en esta propiedad, o ya confirmado para el mismo propietario en cualquiera de las suyas.
+        .andWhere(`(
+          (visit.propertyId = :propertyId AND (visit.status = :confirmed OR (visit.status IN (:...waiting) AND visit.expiresAt > :now)))
+          OR (visit.ownerId = (SELECT "ownerId" FROM property WHERE id = :propertyId) AND visit.status = :confirmed)
+        )`, { propertyId, confirmed: VisitStatus.CONFIRMED, waiting: EXPIRING_STATUSES, now })
         .getMany(),
     ]);
     if (!property || property.status !== PropertyStatus.ACTIVE) throw errors.propertyUnavailable();
@@ -136,6 +138,7 @@ export class VisitService {
       timezone: availability.timezone,
       slotMinutes: SLOT_MINUTES,
       propertyReserved: Boolean(property.reservedTenantId),
+      autoConfirm: availability.autoConfirm,
       slots: listSlots({
         from, to, rules: availability.rules, timezone: availability.timezone, now,
         occupied: new Set(held.map((visit) => visit.scheduledAt.getTime())),
@@ -147,7 +150,7 @@ export class VisitService {
 
   async request(tenantId: number, dto: CreateVisitDto, now = new Date()) {
     const scheduledAt = new Date(dto.scheduledAt);
-    const { id, notifyOwnerNow } = await this.dataSource.transaction(async (manager) => {
+    const { id, notifyOwnerNow, auto, expired } = await this.dataSource.transaction(async (manager) => {
       // Se bloquea la fila de la propiedad: dos solicitudes a la vez se procesan una tras otra, y gana la primera.
       const property = await this.basicProperty(manager, dto.propertyId, true);
       if (!property || property.status !== PropertyStatus.ACTIVE) throw errors.propertyUnavailable();
@@ -157,20 +160,24 @@ export class VisitService {
       const availability = await this.availabilityOf(manager, property.id);
       this.assertBookable(scheduledAt, availability, now);
 
-      await this.releaseStaleHolds(manager, property.id, now);
-      const [counts] = await manager.query<{ pending: number; mine: number; taken: number; ownerPending: number }[]>(
+      const expiredHolds = await this.releaseStaleHolds(manager, property.id, now);
+      const [counts] = await manager.query<{ pending: number; mine: number; taken: number; ownerPending: number; ownerBusy: number }[]>(
         `SELECT
            (SELECT count(*)::int FROM visit WHERE "propertyId" = $1 AND status = 'PENDING') AS pending,
            (SELECT count(*)::int FROM visit WHERE "propertyId" = $1 AND "tenantId" = $2
               AND (status IN ('PENDING', 'COUNTER_PROPOSED') OR (status = 'CONFIRMED' AND "scheduledAt" > $3))) AS mine,
            (SELECT count(*)::int FROM visit WHERE "propertyId" = $1 AND "scheduledAt" = $4
               AND status IN ('PENDING', 'COUNTER_PROPOSED', 'CONFIRMED')) AS taken,
-           (SELECT count(*)::int FROM visit WHERE "ownerId" = $5 AND status = 'PENDING' AND "expiresAt" > $3) AS "ownerPending"`,
+           (SELECT count(*)::int FROM visit WHERE "ownerId" = $5 AND status = 'PENDING' AND "expiresAt" > $3) AS "ownerPending",
+           (SELECT count(*)::int FROM visit WHERE "ownerId" = $5 AND "scheduledAt" = $4 AND status = 'CONFIRMED') AS "ownerBusy"`,
         [property.id, tenantId, now, scheduledAt, property.ownerId],
       );
       if (counts.mine > 0) throw errors.alreadyActive();
-      if (counts.taken > 0) throw errors.slotTaken();
-      if (counts.pending >= MAX_PENDING_PER_PROPERTY) throw errors.queueFull();
+      // Ocupado en esta propiedad, o con otra cita ya confirmada del propietario a esa hora en cualquiera de las suyas.
+      if (counts.taken > 0 || counts.ownerBusy > 0) throw errors.slotTaken();
+      // Con la confirmación automática no hay cola que proteger: la cita queda confirmada al instante.
+      const auto = availability.autoConfirm;
+      if (!auto && counts.pending >= MAX_PENDING_PER_PROPERTY) throw errors.queueFull();
 
       const visits = manager.getRepository(Visit);
       try {
@@ -179,20 +186,30 @@ export class VisitService {
           tenantId,
           ownerId: property.ownerId,
           scheduledAt,
-          status: VisitStatus.PENDING,
+          status: auto ? VisitStatus.CONFIRMED : VisitStatus.PENDING,
+          confirmedAt: auto ? now : null,
           note: dto.note?.trim() || null,
           timezone: availability.timezone,
-          expiresAt: new Date(now.getTime() + HOLD_HOURS * HOUR),
+          expiresAt: auto ? null : new Date(now.getTime() + HOLD_HOURS * HOUR),
           // Si el propietario no tenía nada pendiente (en ninguna de sus propiedades), esta solicitud se le avisa de
           // inmediato; las siguientes van juntas en el resumen para no llenarle el correo.
-          ownerNotifiedAt: counts.ownerPending === 0 ? now : null,
+          ownerNotifiedAt: !auto && counts.ownerPending === 0 ? now : null,
         }));
-        return { id: saved.id, notifyOwnerNow: counts.ownerPending === 0 };
+        return { id: saved.id, notifyOwnerNow: !auto && counts.ownerPending === 0, auto, expired: expiredHolds };
       } catch (error) {
-        return translateConflict(error);
+        // Dos personas pidiendo el mismo horario a la vez (o el propietario ya ocupado a esa hora): para quien pide es lo mismo.
+        if ((error as Constraint).driverError?.code === '23505') throw errors.slotTaken();
+        throw error;
       }
     });
-    if (notifyOwnerNow) void this.notifier?.notify(id, 'REQUESTED');
+    if (expired.length) void this.notifier?.notifyExpired(expired);
+    if (auto) {
+      // Confirmada al instante: el propietario se entera de la nueva cita y el inquilino recibe su confirmación.
+      void this.notifier?.notify(id, 'AUTO_CONFIRMED');
+      void this.notifier?.notify(id, 'CONFIRMED');
+    } else if (notifyOwnerNow) {
+      void this.notifier?.notify(id, 'REQUESTED');
+    }
     return this.loadView(id, now);
   }
 
@@ -204,12 +221,34 @@ export class VisitService {
     if (!isOfferedSlot(scheduledAt, availability.rules, availability.timezone)) throw errors.invalidSlot();
   }
 
-  /** Las solicitudes que nadie respondió a tiempo dejan de retener su horario. */
+  /** Las solicitudes que nadie respondió a tiempo dejan de retener su horario. Devuelve cuáles venció (para avisar). */
   private async releaseStaleHolds(manager: EntityManager, propertyId: number, now: Date) {
-    await manager.createQueryBuilder().update(Visit)
-      .set({ status: VisitStatus.EXPIRED })
-      .where('"propertyId" = :propertyId AND "status" IN (:...waiting) AND "expiresAt" <= :now', { propertyId, waiting: EXPIRING_STATUSES, now })
-      .execute();
+    const result = await manager.query(
+      `WITH stale AS (
+         SELECT id, status FROM visit
+          WHERE "propertyId" = $1 AND status IN ('PENDING', 'COUNTER_PROPOSED') AND "expiresAt" <= $2
+            FOR UPDATE SKIP LOCKED)
+       UPDATE visit v SET status = 'EXPIRED', "updatedAt" = $2 FROM stale s WHERE v.id = s.id
+       RETURNING v.id, s.status AS "previousStatus"`,
+      [propertyId, now],
+    );
+    // UPDATE ... RETURNING devuelve [filas, cantidad] según el driver.
+    return (Array.isArray(result[0]) ? result[0] : result) as { id: number; previousStatus: string }[];
+  }
+
+  /**
+   * La propiedad se reservó para alguien: las demás citas (pendientes, con otro horario propuesto o confirmadas que
+   * todavía no llegan) se cancelan solas. Se llama dentro de la transacción de la reserva y devuelve los ids para avisar.
+   */
+  async cancelForReservation(manager: EntityManager, propertyId: number, keepTenantId: number): Promise<number[]> {
+    const result = await manager.query(
+      `UPDATE visit SET status = 'CANCELLED', "cancelledBy" = 'SYSTEM', "cancelReason" = 'PROPERTY_RESERVED', "expiresAt" = NULL, "updatedAt" = now()
+        WHERE "propertyId" = $1 AND "tenantId" <> $2
+          AND (status IN ('PENDING', 'COUNTER_PROPOSED') OR (status = 'CONFIRMED' AND "scheduledAt" > now()))
+       RETURNING id`,
+      [propertyId, keepTenantId],
+    );
+    return ((Array.isArray(result[0]) ? result[0] : result) as { id: number }[]).map((row) => row.id);
   }
 
   // ---------- Responder ----------
@@ -255,17 +294,20 @@ export class VisitService {
     if (visit.ownerId !== ownerId) throw errors.onlyOwner();
     this.assertCanAct(visit, [VisitStatus.PENDING], now);
 
+    let expired: { id: number; previousStatus: string }[] = [];
     await this.dataSource.transaction(async (manager) => {
       await this.basicProperty(manager, visit.propertyId, true);
       const availability = await this.availabilityOf(manager, visit.propertyId);
       this.assertBookable(scheduledAt, availability, now);
       if (scheduledAt.getTime() === visit.scheduledAt.getTime()) throw errors.invalidSlot();
 
-      await this.releaseStaleHolds(manager, visit.propertyId, now);
+      expired = await this.releaseStaleHolds(manager, visit.propertyId, now);
       const [taken] = await manager.query<{ count: number }[]>(
-        `SELECT count(*)::int AS count FROM visit WHERE "propertyId" = $1 AND "scheduledAt" = $2 AND id <> $3
-           AND status IN ('PENDING', 'COUNTER_PROPOSED', 'CONFIRMED')`,
-        [visit.propertyId, scheduledAt, id],
+        `SELECT count(*)::int AS count FROM visit
+          WHERE "scheduledAt" = $2 AND id <> $3
+            AND (("propertyId" = $1 AND status IN ('PENDING', 'COUNTER_PROPOSED', 'CONFIRMED'))
+              OR ("ownerId" = $4 AND status = 'CONFIRMED'))`,
+        [visit.propertyId, scheduledAt, id, visit.ownerId],
       );
       if (taken.count > 0) throw errors.slotTaken();
 
@@ -282,6 +324,7 @@ export class VisitService {
         translateConflict(error);
       }
     });
+    if (expired.length) void this.notifier?.notifyExpired(expired);
     void this.notifier?.notify(id, 'PROPOSED');
     return this.loadView(id, now);
   }

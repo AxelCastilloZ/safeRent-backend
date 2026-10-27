@@ -33,6 +33,8 @@ async function main() {
   try {
     await runner.startTransaction();
     const manager = runner.manager;
+    // La base es compartida y puede tener citas reales: la prueba parte de cero dentro de su transacción (que se revierte).
+    await runner.query('DELETE FROM visit');
     const fake = {
       transaction: (work: (m: typeof manager) => unknown) => work(manager),
       getRepository: (entity: never) => manager.getRepository(entity),

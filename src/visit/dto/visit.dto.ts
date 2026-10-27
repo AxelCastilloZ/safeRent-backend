@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsInt, IsISO8601, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsInt, IsISO8601, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const HALF_HOUR = /^([01]\d|2[0-3]):(00|30)$/;
@@ -64,4 +64,9 @@ export class SetAvailabilityDto {
   @ValidateNested({ each: true })
   @Type(() => AvailabilityRuleDto)
   rules!: AvailabilityRuleDto[];
+
+  /** Confirmar al instante las citas que se pidan. */
+  @IsOptional()
+  @IsBoolean()
+  autoConfirm?: boolean;
 }
