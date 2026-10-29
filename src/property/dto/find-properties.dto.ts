@@ -45,6 +45,14 @@ export class FindPropertiesDto {
   @Type(() => Number)
   typeOfPropertyId?: number;
 
+  /** Solo las propiedades de este propietario (la página pública del propietario). */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  @Type(() => Number)
+  ownerId?: number;
+
   @IsOptional()
   @Min(0)
   @IsNumber({ allowInfinity: false, allowNaN: false, maxDecimalPlaces: 6 })

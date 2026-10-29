@@ -44,3 +44,38 @@ describe('Public property details', () => {
     expect(result.files).toEqual([{ path: '/saferent/propiedades/casa-9/fotos/photo.jpg', mimeType: 'image/jpeg', url }]);
   });
 });
+
+describe('Public owner page', () => {
+  const findAndCount = jest.fn();
+  const build = (propertyRepo: object) => new PropertyService(
+    propertyRepo as Repository<Property>,
+    {} as Repository<TypeOfProperty>, {} as ServiceService,
+    {} as Repository<PropertyFile>, {} as Repository<IconDescription>,
+    {} as Repository<User>,
+    { ensureRole: jest.fn() } as unknown as UserService,
+  );
+
+  it('exposes only the name and the number of published properties', async () => {
+    findAndCount.mockResolvedValue([[{ id: 9, owner: { id: 2, name: 'Ana', email: 'private', idCard: 'private' } }], 3]);
+    const result = await build({ findAndCount }).findPublicOwner(2);
+    expect(findAndCount).toHaveBeenCalledWith({ where: { ownerId: 2, status: PropertyStatus.ACTIVE }, take: 1 });
+    expect(result).toEqual({ id: 2, name: 'Ana', activeProperties: 3 });
+  });
+
+  it('does not exist for the public when the person has no published properties', async () => {
+    findAndCount.mockResolvedValue([[], 0]);
+    await expect(build({ findAndCount }).findPublicOwner(2)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('limits the public listing to one owner', async () => {
+    const where: string[] = [];
+    const chain: Record<string, jest.Mock> = {};
+    for (const name of ['leftJoinAndSelect', 'leftJoin', 'innerJoin', 'orderBy', 'addOrderBy', 'addSelect', 'setParameter', 'skip', 'take']) chain[name] = jest.fn(() => chain);
+    chain.where = jest.fn(() => chain);
+    chain.andWhere = jest.fn((sql: string) => { where.push(sql); return chain; });
+    chain.getManyAndCount = jest.fn().mockResolvedValue([[], 0]);
+    await build({ createQueryBuilder: () => chain }).findAll({ ownerId: 2 });
+    expect(where).toContain('property.ownerId = :ownerId');
+    expect(chain.andWhere).toHaveBeenCalledWith('property.ownerId = :ownerId', { ownerId: 2 });
+  });
+});
