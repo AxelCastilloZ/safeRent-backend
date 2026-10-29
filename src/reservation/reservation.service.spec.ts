@@ -7,14 +7,17 @@ import { VisitService } from '../visit/visit.service';
 import { VisitNotificationService } from '../visit/visit-notification.service';
 import { ReservationNotificationService } from './reservation-notification.service';
 import { Visit } from '../visit/entities/visit.entity';
+import { Reservation } from './entities/reservation.entity';
 
 describe('Reservation from a conversation', () => {
   function setup(ownerId = 1, reservedTenantId: number | null = null, status = 'ACTIVE', failCommit = false) {
     const property = { id: 5, title: 'Casa', ownerId: 1, status, reservedTenantId, reservedTenantName: 'Ana Pérez', reservedAt: null };
     const builder = { where: jest.fn().mockReturnThis(), setLock: jest.fn().mockReturnThis(), getOne: jest.fn().mockResolvedValue(property) };
     const save = jest.fn();
+    const history = { insert: jest.fn(), update: jest.fn() };
     const manager = {
-      getRepository: (entity: unknown) => entity === Conversation
+      getRepository: (entity: unknown) => entity === Reservation ? history
+        : entity === Conversation
         ? { findOne: jest.fn().mockResolvedValue({ property: { id: 5 }, participants: [{ id: 1 }, { id: 2 }] }) }
         : entity === Property ? { createQueryBuilder: () => builder, save }
         : entity === Visit ? { findOneBy: jest.fn().mockResolvedValue({ id: 9, propertyId: 5, tenantId: 2, ownerId: 1, status: 'CONFIRMED' }) }
@@ -33,7 +36,7 @@ describe('Reservation from a conversation', () => {
     { cancelForReservation } as unknown as VisitService,
     { notify: visitNotify } as unknown as VisitNotificationService,
     { notify: (...args: unknown[]) => { expect(committed).toBe(true); return notify(...args); } } as unknown as ReservationNotificationService);
-    return { reserve: () => service.reserve(8, ownerId), reserveFromVisit: () => service.reserveFromVisit(9, ownerId), release: (reason = 'Cambio de planes') => service.release(5, ownerId, reason), property, builder, save, notify, visitNotify, cancelForReservation };
+    return { reserve: () => service.reserve(8, ownerId), reserveFromVisit: () => service.reserveFromVisit(9, ownerId), release: (reason = 'Cambio de planes') => service.release(5, ownerId, reason), property, builder, save, notify, visitNotify, cancelForReservation, history };
   }
 
   it('links the tenant and keeps the approved property active', async () => {
@@ -64,6 +67,30 @@ describe('Reservation from a conversation', () => {
     expect(test.visitNotify).toHaveBeenCalledTimes(2);
     await test.reserveFromVisit();
     expect(test.notify).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens a history entry when the property is reserved', async () => {
+    const test = setup();
+    await test.reserve();
+    expect(test.history.insert).toHaveBeenCalledWith(expect.objectContaining({ propertyId: 5, tenantId: 2, ownerId: 1 }));
+  });
+
+  it('closes the history entry with the reason when the reservation is removed', async () => {
+    const test = setup(1, 2);
+    await test.release('  Cambio de planes ');
+    const [where, changes] = test.history.update.mock.calls[0] as [{ propertyId: number }, { endedAt: Date; endReason: string }];
+    expect(where.propertyId).toBe(5);
+    expect(changes.endReason).toBe('Cambio de planes');
+    expect(changes.endedAt).toBeInstanceOf(Date);
+  });
+
+  it('does not touch the history on retries or when there is nothing to release', async () => {
+    const retry = setup(1, 2);
+    await retry.reserve();
+    expect(retry.history.insert).not.toHaveBeenCalled();
+    const empty = setup();
+    await empty.release();
+    expect(empty.history.update).not.toHaveBeenCalled();
   });
 
   it('does not notify when the reservation transaction fails to commit', async () => {

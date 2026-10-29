@@ -9,6 +9,7 @@ import { VisitNotificationService } from '../visit/visit-notification.service';
 import { VisitStatus } from '../visit/visit-status.enum';
 import { VisitService } from '../visit/visit.service';
 import { ReservationNotificationService, type ReservationNotice } from './reservation-notification.service';
+import { closeReservation, openReservation } from './reservation-history.service';
 
 @Injectable()
 export class ReservationService {
@@ -34,6 +35,8 @@ export class ReservationService {
         propertyId: property.id, property: property.title, ownerId: property.ownerId,
         tenantId: property.reservedTenantId, reason: reason.trim(),
       } : null;
+      // El historial conserva la reserva que termina, con su motivo.
+      if (property.reservedTenantId) await closeReservation(manager, property.id, reason.trim());
       property.reservedTenantId = null;
       property.reservedTenantName = null;
       property.reservedAt = null;
@@ -104,6 +107,7 @@ export class ReservationService {
       property.reservedTenantName = [tenant.name, tenant.surname1, tenant.surname2].filter(Boolean).join(' ');
       property.reservedAt = new Date();
       await manager.getRepository(Property).save(property);
+      await openReservation(manager, property, tenant.id);
       // Con la propiedad reservada, las citas de las demás personas dejan de tener sentido.
       cancelled = (await this.visits?.cancelForReservation(manager, property.id, tenant.id)) ?? [];
       notice = { propertyId: property.id, property: property.title, ownerId: property.ownerId, tenantId: tenant.id };
