@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { AppRole } from '../../auth/access';
@@ -30,6 +30,24 @@ export class ConversationService {
     if (!property || !property.owner?.isActive) throw new NotFoundException({ code: "API_PROPIEDAD_NO_DISPONIBLE", message: 'Propiedad no disponible', params: {  } });
     if (property.owner.id === userId) throw new BadRequestException({ code: "API_NO_PUEDES_INICIAR_UN_CHAT_CONTIGO_MISMO", message: 'No puedes iniciar un chat contigo mismo', params: {  } });
     return this.create({ propertyId, participantIds: [userId, property.owner.id] });
+  }
+
+  /**
+   * Abre (o retoma) el chat de una cita confirmada. Lo puede hacer cualquiera de las dos personas: así el propietario
+   * también puede escribir primero, algo que el chat normal no permite (solo el inquilino lo inicia).
+   */
+  async createFromVisit(visitId: number, userId: number) {
+    const [visit] = await this.conversationRepo.manager.query<{ propertyId: number; tenantId: number; ownerId: number; status: string }[]>(
+      'SELECT "propertyId", "tenantId", "ownerId", status FROM visit WHERE id = $1', [visitId],
+    );
+    if (!visit) throw new NotFoundException({ code: 'API_CITA_NO_ENCONTRADA', message: 'Cita no encontrada', params: {} });
+    if (visit.tenantId !== userId && visit.ownerId !== userId) {
+      throw new ForbiddenException({ code: 'API_NO_PARTICIPAS_EN_ESTA_CITA', message: 'No participas en esta cita', params: {} });
+    }
+    if (visit.status !== 'CONFIRMED') {
+      throw new ConflictException({ code: 'API_EL_ESTADO_DE_LA_CITA_NO_PERMITE_ESTA_ACCION', message: 'El estado de la cita no permite esta acción', params: {} });
+    }
+    return this.create({ propertyId: visit.propertyId, participantIds: [visit.tenantId, visit.ownerId] });
   }
 
   async create(createConversationDto: CreateConversationDto) {

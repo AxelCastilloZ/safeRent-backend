@@ -18,6 +18,13 @@ export class ConversationController {
     return conversationView(await this.conversationService.createForUser(dto.propertyId, req.user.id));
   }
 
+  // Chat de una cita confirmada: lo puede abrir el inquilino o el propietario.
+  @Roles(AppRole.CLIENT, AppRole.OWNER)
+  @Post('visit/:visitId')
+  async createFromVisit(@Param('visitId', ParseIntPipe) visitId: number, @Req() req: AuthRequest) {
+    return conversationView(await this.conversationService.createFromVisit(visitId, req.user.id));
+  }
+
   // Solo el administrador inicia conversaciones directas; los usuarios responden desde su bandeja.
   @Roles(AppRole.ADMIN)
   @Post('direct')

@@ -16,12 +16,13 @@ export class CommentService {
     const comments = await this.dataSource.getRepository(PropertyComment).find({
       where: { property: { id: propertyId }, hidden: false },
       relations: { author: true },
-      select: { id: true, content: true, createdAt: true, author: { id: true, name: true } },
+      select: { id: true, content: true, rating: true, createdAt: true, author: { id: true, name: true } },
       order: { createdAt: 'DESC', id: 'DESC' },
     });
     return comments.map((comment) => ({
       id: comment.id,
       content: comment.content,
+      rating: comment.rating,
       createdAt: comment.createdAt,
       author: { id: comment.author.id, name: comment.author.name },
     }));
@@ -41,7 +42,7 @@ export class CommentService {
       order: { createdAt: 'DESC', id: 'DESC' },
     });
     return comments.map((comment) => ({
-      id: comment.id, content: comment.content, createdAt: comment.createdAt,
+      id: comment.id, content: comment.content, rating: comment.rating, createdAt: comment.createdAt,
       hidden: comment.hidden, moderationNote: comment.moderationNote,
       moderatedAt: comment.moderatedAt, moderatedById: comment.moderatedById,
       author: { id: comment.author.id, name: comment.author.name },
@@ -74,9 +75,9 @@ export class CommentService {
         const comments = manager.getRepository(PropertyComment);
         const existing = await comments.findOneBy({ property: { id: propertyId }, author: { id: userId } });
         if (existing) throw new ConflictException({ code: "API_YA_COMENTASTE_ESTA_PROPIEDAD", message: 'Ya comentaste esta propiedad', params: {  } });
-        const comment = comments.create({ content: dto.content, property: { id: propertyId }, author: { id: userId } });
+        const comment = comments.create({ content: dto.content, ...(dto.rating !== undefined ? { rating: dto.rating } : {}), property: { id: propertyId }, author: { id: userId } });
         const saved = await comments.save(comment);
-        return { id: saved.id, content: saved.content, createdAt: saved.createdAt };
+        return { id: saved.id, content: saved.content, rating: saved.rating, createdAt: saved.createdAt };
       });
     } catch (error) {
       if (error instanceof QueryFailedError && (error.driverError as { code?: string }).code === '23505') {

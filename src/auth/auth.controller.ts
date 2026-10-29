@@ -21,6 +21,7 @@ import { ProfileService } from './profile.service';
 import { ChangePasswordDto, UpdateProfileDto } from './dto/profile.dto';
 import { getProfileCurrencyOptions } from '../currency/profile-currency';
 import { UpdateLanguageDto } from './dto/language.dto';
+import { UpdateCurrencyDto } from './dto/currency.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -32,12 +33,21 @@ export class AuthController {
   @Get('profile-options')
   getProfileOptions() { return getProfileCurrencyOptions(); }
 
+  @Public()
+  @Get('display-currencies')
+  getDisplayCurrencies() { return { currencies: getProfileCurrencyOptions().currencies }; }
+
   @Patch('profile')
   updateProfile(@Req() request: AuthRequest, @Body() dto: UpdateProfileDto) { return this.profile.update(request.user.id, dto); }
 
   @Patch('language')
   updateLanguage(@Req() request: AuthRequest, @Body() dto: UpdateLanguageDto) {
     return this.profile.updateLanguage(request.user.id, dto.preferredLanguage);
+  }
+
+  @Patch('currency')
+  updateCurrency(@Req() request: AuthRequest, @Body() dto: UpdateCurrencyDto) {
+    return this.profile.updateCurrency(request.user.id, dto.preferredCurrency);
   }
 
   @Post('change-password')

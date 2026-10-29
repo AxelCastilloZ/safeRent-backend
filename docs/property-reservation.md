@@ -15,7 +15,19 @@ cédula, teléfono ni otros datos personales del inquilino.
 
 El estado de revisión sigue siendo ACTIVE: la reserva es independiente. La propiedad
 permanece en el catálogo y muestra «Reservado por [nombre]» en tarjeta, detalle y chat.
-No se incorporaron calendarios, confirmaciones del cliente, cancelaciones ni comentarios.
+El propietario también puede reservar desde una cita confirmada con
+POST /reservations/visit/:visitId. Las citas vigentes de otras personas se cancelan
+y sus inquilinos reciben el aviso de que la propiedad ya fue alquilada.
+
+Al confirmar una reserva se envía un correo al inquilino elegido y al propietario.
+DELETE /reservations/property/:propertyId elimina la reserva y requiere un cuerpo JSON
+con `reason` (motivo de 1 a 500 caracteres, sin contar espacios al inicio o al final).
+Ambas partes reciben la notificación de eliminación con ese motivo. Repetir una
+confirmación o eliminación ya aplicada no vuelve a enviar los correos.
+
+Los correos usan BrevoMailService y el mismo formato e idioma preferido que las citas,
+respetando VISIT_EMAILS_ENABLED. Se envían después de confirmar la transacción;
+un error de envío se registra sin revertir la reserva o su eliminación.
 
 Backend: módulo reservation, controlador y servicio separados. Frontend: módulo Reservations
 con modelo, servicio, hook y componentes Tailwind. El chat se refresca después de reservar

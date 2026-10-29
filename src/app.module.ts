@@ -22,7 +22,13 @@ import { CurrencyProviderCodes1792454400001 } from './migrations/1792454400001-c
 import { ProfileCurrency1792454400002 } from './migrations/1792454400002-profile-currency';
 import { ProfileLanguage1792627200000 } from './migrations/1792627200000-profile-language';
 import { CatalogI18n1792713600000 } from './migrations/1792713600000-catalog-i18n';
+import { Visits1792800000000 } from './migrations/1792800000000-visits';
+import { VisitNotifications1792886400000 } from './migrations/1792886400000-visit-notifications';
+import { VisitAutomation1792972800000 } from './migrations/1792972800000-visit-automation';
+import { VisitModule } from './visit/visit.module';
 import { CatalogBootstrap } from './common/catalog-bootstrap';
+import { CommentRatings1793059200000 } from './migrations/1793059200000-comment-ratings';
+import { ReservationHistory1793145600000 } from './migrations/1793145600000-reservation-history';
 
 @Module({
   imports: [
@@ -49,6 +55,11 @@ import { CatalogBootstrap } from './common/catalog-bootstrap';
         DropboxStorage1792627200000,
         ProfileLanguage1792627200000,
         CatalogI18n1792713600000,
+        Visits1792800000000,
+        VisitNotifications1792886400000,
+        VisitAutomation1792972800000,
+        CommentRatings1793059200000,
+        ReservationHistory1793145600000,
       ],
       // Development already synchronizes entities; production applies versioned migrations.
       migrationsRun: process.env.DB_SYNCHRONIZE === 'false',
@@ -64,6 +75,7 @@ import { CatalogBootstrap } from './common/catalog-bootstrap';
     CommentModule,
     CurrencyModule,
     SavedPropertyModule,
+    VisitModule,
   ],
   controllers: [AppController],
   providers: [AppService, CatalogBootstrap],

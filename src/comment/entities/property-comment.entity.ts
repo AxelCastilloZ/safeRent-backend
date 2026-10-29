@@ -1,15 +1,20 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique } from 'typeorm';
+import { Check, Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique } from 'typeorm';
 import { Property } from '../../property/entities/property.entity';
 import { User } from '../../user/entities/user.entity';
 
 @Entity('property_comment')
 @Unique('uq_property_comment_author', ['property', 'author'])
+@Check('ck_property_comment_rating', '"rating" BETWEEN 1 AND 5')
 export class PropertyComment {
   @PrimaryGeneratedColumn()
   id!: number;
 
   @Column({ type: 'varchar', length: 1000 })
   content!: string;
+
+  // Existing comments retain no score; they do not contribute to the average.
+  @Column({ type: 'smallint', nullable: true })
+  rating!: number | null;
 
   @Column({ type: 'boolean', default: false })
   hidden!: boolean;

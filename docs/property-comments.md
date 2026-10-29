@@ -3,14 +3,24 @@
 En el detalle público de la propiedad se muestran los comentarios y, únicamente para el
 inquilino vinculado mediante reservedTenantId, un formulario para publicar su experiencia.
 Cada inquilino puede publicar un comentario por propiedad. El texto se recorta y tiene
-un máximo de 1000 caracteres. No se incorporaron puntuaciones ni edición.
+un máximo de 1000 caracteres. El formulario incorpora una valoración entera de 1 a 5 estrellas.
+Los comentarios históricos conservan `rating = null` y no participan en el promedio.
+El promedio y la cantidad se calculan sobre los comentarios públicos con puntuación;
+ocultar un comentario también excluye su puntuación. No se incorporó edición.
 
 GET /comments/property/:propertyId es público y lista los comentarios de una propiedad
-activa, con ID, contenido, fecha y solo ID y nombre del autor.
+activa, con ID, contenido, puntuación, fecha y solo ID y nombre del autor.
 
-POST /comments/property/:propertyId requiere sesión. Recibe { content } y toma el autor
+POST /comments/property/:propertyId requiere sesión. Recibe { content, rating } y toma el autor
 del token. El backend verifica que reservedTenantId coincida con ese usuario y que no
 sea el propietario. No basta con mostrar el formulario en el frontend.
+`rating` es opcional en la API por compatibilidad con clientes anteriores; si se envía,
+se valida que sea un entero entre 1 y 5. El formulario nuevo exige seleccionar estrellas.
+
+La migración `CommentRatings1793059200000` agrega la columna y una restricción de rango.
+Está registrada en AppModule: con DB_SYNCHRONIZE=false se aplica al iniciar el backend;
+en desarrollo la entidad sincroniza el mismo campo y restricción. Esta actualización
+no ejecuta por sí sola cambios sobre una base de datos que ya esté corriendo.
 
 La tabla property_comment relaciona cada comentario con property y user. Una restricción
 única impide duplicados; la transacción bloquea la propiedad al comprobar la reserva.
