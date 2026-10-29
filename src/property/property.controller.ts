@@ -92,6 +92,13 @@ export class PropertyController {
         return (await this.priced([await this.propertyService.findPublic(id)], query))[0];
     }
 
+    // Pública: la página con las propiedades de un propietario (se llega desde el detalle de una propiedad).
+    @Public()
+    @Get('owners/:ownerId')
+    findPublicOwner(@Param('ownerId', ParseIntPipe) ownerId: number) {
+        return this.propertyService.findPublicOwner(ownerId);
+    }
+
     @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
     @AccessTo('owner-list')
     @Get('owner/:ownerId')

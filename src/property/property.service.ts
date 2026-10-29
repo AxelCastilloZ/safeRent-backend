@@ -83,6 +83,7 @@ export class PropertyService {
         const {
             serviceIds = [],
             typeOfPropertyId,
+            ownerId,
             minPrice,
             maxPrice,
             search,
@@ -100,6 +101,10 @@ export class PropertyService {
 
         if (typeOfPropertyId) {
             query.andWhere('typeOfProperty.id = :typeOfPropertyId', { typeOfPropertyId });
+        }
+
+        if (ownerId) {
+            query.andWhere('property.ownerId = :ownerId', { ownerId });
         }
 
         let priceExpression = 'property.cost';
@@ -180,6 +185,19 @@ export class PropertyService {
             reservedTenantName: property.reservedTenantName,
             reservedAt: property.reservedAt,
         };
+    }
+
+    /**
+     * Datos públicos de un propietario para su página de propiedades: solo nombre y cuántas propiedades publicadas tiene.
+     * Una persona sin propiedades publicadas no existe para el público (así no se puede consultar el nombre de cualquier usuario por su id).
+     */
+    async findPublicOwner(ownerId: number) {
+        const [[first], activeProperties] = await this.propertyRepo.findAndCount({
+            where: { ownerId, status: PropertyStatus.ACTIVE },
+            take: 1,
+        });
+        if (!first) throw new NotFoundException({ code: "API_PROPIETARIO_NO_DISPONIBLE", message: 'Propietario no disponible', params: {} });
+        return { id: first.owner.id, name: first.owner.name, activeProperties };
     }
 
     async findByTenant(tenantId: number) {
