@@ -31,6 +31,8 @@ import { CommentRatings1793059200000 } from './migrations/1793059200000-comment-
 import { ReservationHistory1793145600000 } from './migrations/1793145600000-reservation-history';
 import { TenantRatings1793232000000 } from './migrations/1793232000000-tenant-ratings';
 import { TenantRatingModule } from './tenant-rating/tenant-rating.module';
+import { PropertyViews1793318400000 } from './migrations/1793318400000-property-views';
+import { PropertyViewModule } from './property-view/property-view.module';
 
 @Module({
   imports: [
@@ -63,6 +65,7 @@ import { TenantRatingModule } from './tenant-rating/tenant-rating.module';
         CommentRatings1793059200000,
         ReservationHistory1793145600000,
         TenantRatings1793232000000,
+        PropertyViews1793318400000,
       ],
       // Development already synchronizes entities; production applies versioned migrations.
       migrationsRun: process.env.DB_SYNCHRONIZE === 'false',
@@ -77,6 +80,7 @@ import { TenantRatingModule } from './tenant-rating/tenant-rating.module';
     ReservationModule,
     CommentModule,
     TenantRatingModule,
+    PropertyViewModule,
     CurrencyModule,
     SavedPropertyModule,
     VisitModule,
