@@ -15,6 +15,13 @@ export class CommentController {
     return this.comments.findForAdmin();
   }
 
+  // Calificación de cada propiedad del propietario con la sesión (sus tarjetas en Mis propiedades).
+  @Roles(AppRole.OWNER)
+  @Get('owner/ratings')
+  ratingsForOwner(@Req() req: AuthRequest) {
+    return this.comments.ratingsForOwner(req.user.id);
+  }
+
   @Roles(AppRole.ADMIN)
   @Patch(':id/moderation')
   moderate(@Param('id', ParseIntPipe) id: number, @Body() dto: ModerateCommentDto, @Req() req: AuthRequest) {

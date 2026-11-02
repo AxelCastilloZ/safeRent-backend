@@ -28,6 +28,21 @@ export class CommentService {
     }));
   }
 
+  /**
+   * Calificación (promedio con un decimal y cantidad) de cada propiedad de un propietario, para sus tarjetas.
+   * Cuenta solo comentarios visibles y con puntaje; las propiedades sin calificaciones no aparecen.
+   */
+  async ratingsForOwner(ownerId: number): Promise<{ propertyId: number; average: number; count: number }[]> {
+    return this.dataSource.query(
+      `SELECT c."propertyId" AS "propertyId", ROUND(AVG(c.rating)::numeric, 1)::float AS average, count(*)::int AS count
+       FROM property_comment c
+       JOIN property p ON p.id = c."propertyId"
+       WHERE p."ownerId" = $1 AND c.hidden = false AND c.rating IS NOT NULL
+       GROUP BY c."propertyId"`,
+      [ownerId],
+    );
+  }
+
   async findOwn(propertyId: number, userId: number) {
     const comment = await this.dataSource.getRepository(PropertyComment).findOne({
       where: { property: { id: propertyId }, author: { id: userId } },
