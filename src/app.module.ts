@@ -29,6 +29,8 @@ import { VisitModule } from './visit/visit.module';
 import { CatalogBootstrap } from './common/catalog-bootstrap';
 import { CommentRatings1793059200000 } from './migrations/1793059200000-comment-ratings';
 import { ReservationHistory1793145600000 } from './migrations/1793145600000-reservation-history';
+import { TenantRatings1793232000000 } from './migrations/1793232000000-tenant-ratings';
+import { TenantRatingModule } from './tenant-rating/tenant-rating.module';
 
 @Module({
   imports: [
@@ -60,6 +62,7 @@ import { ReservationHistory1793145600000 } from './migrations/1793145600000-rese
         VisitAutomation1792972800000,
         CommentRatings1793059200000,
         ReservationHistory1793145600000,
+        TenantRatings1793232000000,
       ],
       // Development already synchronizes entities; production applies versioned migrations.
       migrationsRun: process.env.DB_SYNCHRONIZE === 'false',
@@ -73,6 +76,7 @@ import { ReservationHistory1793145600000 } from './migrations/1793145600000-rese
     AuthModule,
     ReservationModule,
     CommentModule,
+    TenantRatingModule,
     CurrencyModule,
     SavedPropertyModule,
     VisitModule,
