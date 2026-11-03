@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   ArrayUnique,
   IsArray,
+  IsBoolean,
   IsInt,
   IsIn,
   IsNumber,
@@ -75,6 +76,47 @@ export class FindPropertiesDto {
   @Min(1)
   @Type(() => Number)
   minRooms?: number;
+
+  // Filtros del entorno: se calculan con el promedio de las encuestas que responden los inquilinos al terminar su estadía.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  @Type(() => Number)
+  minWaterStability?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  @Type(() => Number)
+  minElectricityStability?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10000)
+  @Type(() => Number)
+  minInternetMbps?: number;
+
+  @IsOptional()
+  @IsNumber({ allowInfinity: false, allowNaN: false, maxDecimalPlaces: 1 })
+  @Min(0)
+  @Max(500)
+  @Type(() => Number)
+  maxUniversityKm?: number;
+
+  @IsOptional()
+  @IsNumber({ allowInfinity: false, allowNaN: false, maxDecimalPlaces: 1 })
+  @Min(0)
+  @Max(500)
+  @Type(() => Number)
+  maxCoworkingKm?: number;
+
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => (value === 'true' || value === true ? true : value === 'false' || value === false ? false : value))
+  @IsBoolean()
+  hasWorkArea?: boolean;
 
   @IsOptional()
   @IsInt()

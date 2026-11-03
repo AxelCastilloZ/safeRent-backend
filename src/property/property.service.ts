@@ -20,6 +20,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as fs from 'fs';
 import type { PropertyPriceContext } from './property-pricing.service';
 import { currencyFractionDigits } from '../currency/currency-metadata';
+import { applyStaySurveyFilters } from './stay-survey-filters';
 
 @Injectable()
 export class PropertyService {
@@ -139,6 +140,8 @@ export class PropertyService {
         if (minRooms) {
             query.andWhere('property.rooms >= :minRooms', { minRooms });
         }
+
+        applyStaySurveyFilters(query, dto);
 
         [...new Set(serviceIds)].forEach((id, index) => {
             const alias = `selectedService${index}`;

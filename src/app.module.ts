@@ -33,6 +33,8 @@ import { TenantRatings1793232000000 } from './migrations/1793232000000-tenant-ra
 import { TenantRatingModule } from './tenant-rating/tenant-rating.module';
 import { PropertyViews1793318400000 } from './migrations/1793318400000-property-views';
 import { PropertyViewModule } from './property-view/property-view.module';
+import { StaySurveys1793404800000 } from './migrations/1793404800000-stay-surveys';
+import { StaySurveyModule } from './stay-survey/stay-survey.module';
 
 @Module({
   imports: [
@@ -66,6 +68,7 @@ import { PropertyViewModule } from './property-view/property-view.module';
         ReservationHistory1793145600000,
         TenantRatings1793232000000,
         PropertyViews1793318400000,
+        StaySurveys1793404800000,
       ],
       // Development already synchronizes entities; production applies versioned migrations.
       migrationsRun: process.env.DB_SYNCHRONIZE === 'false',
@@ -81,6 +84,7 @@ import { PropertyViewModule } from './property-view/property-view.module';
     CommentModule,
     TenantRatingModule,
     PropertyViewModule,
+    StaySurveyModule,
     CurrencyModule,
     SavedPropertyModule,
     VisitModule,
