@@ -1,6 +1,6 @@
 import { DropboxService } from '../dropbox/dropbox.service';
 import { resourceFolder } from '../dropbox/resource-folder';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { Property } from './entities/property.entity';
 import { TypeOfProperty } from './entities/type-of-property.entity';
 import { ServiceService } from '../service/service.service';
@@ -21,6 +21,9 @@ import * as fs from 'fs';
 import type { PropertyPriceContext } from './property-pricing.service';
 import { currencyFractionDigits } from '../currency/currency-metadata';
 import { applyStaySurveyFilters } from './stay-survey-filters';
+
+/** Videos que admite cada propiedad. */
+export const MAX_VIDEOS = 2;
 
 @Injectable()
 export class PropertyService {
@@ -328,7 +331,7 @@ export class PropertyService {
 
         this.validateLocation(property);
 
-        if ((property.files?.length ?? 0) < 3) {
+        if ((property.files ?? []).filter(file => !file.mimeType?.startsWith('video/')).length < 3) {
             throw new BadRequestException({ code: "API_AGREGA_AL_MENOS_3_IMAGENES_ANTES_DE_ENVIAR_A", message: 'Agrega al menos 3 imágenes antes de enviar a revisión.', params: {  } });
         }
 
@@ -393,6 +396,31 @@ export class PropertyService {
             const rows: PropertyFile[] = [];
             for (const file of files) {
                 const stored = await this.dropbox.upload(file, `${propertyFolder}/Fotos`);
+                uploaded.push(stored.path);
+                rows.push(this.propertyFileRepo.create({ ...stored, storage: 'dropbox', fileName: file.originalname, mimeType: file.mimetype, size: file.size, uploadedBy: property.owner?.name ?? 'unknown', property }));
+            }
+            return await this.propertyFileRepo.save(rows);
+        } catch (error) {
+            await Promise.allSettled(uploaded.map(path => this.dropbox.delete(path)));
+            throw error;
+        }
+    }
+
+    /** Videos del recorrido de la propiedad: pocos y livianos; se guardan junto a las fotos pero en su propia carpeta. */
+    async saveVideos(propertyId: number, files: Express.Multer.File[]) {
+        const property = await this.findOne(propertyId);
+
+        if (!files?.length) throw new BadRequestException('No se enviaron archivos.');
+        const current = await this.propertyFileRepo.count({ where: { property: { id: propertyId }, mimeType: Like('video/%') } });
+        if (current + files.length > MAX_VIDEOS) {
+            throw new BadRequestException({ code: "API_MAXIMO_VIDEOS_POR_PROPIEDAD", message: `Una propiedad admite hasta ${MAX_VIDEOS} videos.`, params: { v0: MAX_VIDEOS } });
+        }
+        const propertyFolder = `Propiedades/${resourceFolder(property.title, property.id, 'propiedad')}`;
+        const uploaded: string[] = [];
+        try {
+            const rows: PropertyFile[] = [];
+            for (const file of files) {
+                const stored = await this.dropbox.upload(file, `${propertyFolder}/Videos`);
                 uploaded.push(stored.path);
                 rows.push(this.propertyFileRepo.create({ ...stored, storage: 'dropbox', fileName: file.originalname, mimeType: file.mimetype, size: file.size, uploadedBy: property.owner?.name ?? 'unknown', property }));
             }

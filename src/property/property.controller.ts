@@ -20,7 +20,7 @@ import {
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { uploadOptions } from '../dropbox/upload-options';
 import { extname } from 'path';
-import { PropertyService } from './property.service';
+import { MAX_VIDEOS, PropertyService } from './property.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { FindPropertiesDto } from './dto/find-properties.dto';
@@ -30,6 +30,9 @@ import { SearchLocationDto } from './dto/search-location.dto';
 import { LocationService } from './location.service';
 import { PropertyPricingService } from './property-pricing.service';
 import { requestLanguage } from '../common/language';
+
+/** Tamaño máximo de cada video, en megabytes. */
+const MAX_VIDEO_MEGABYTES = 30;
 
 @Controller('properties')
 export class PropertyController {
@@ -165,6 +168,20 @@ export class PropertyController {
         @UploadedFiles() files: Express.Multer.File[],
     ) {
         return this.propertyService.saveFiles(id, files);
+    }
+
+    /** Videos del recorrido: hasta 2 por propiedad, de 30 MB cada uno (mp4, webm o mov). */
+    @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
+    @AccessTo('property')
+    @Post(':id/videos')
+    @UseInterceptors(
+        FilesInterceptor('videos', MAX_VIDEOS, uploadOptions(['video/mp4', 'video/webm', 'video/quicktime'], MAX_VIDEO_MEGABYTES)),
+    )
+    uploadVideos(
+        @Param('id') id: number,
+        @UploadedFiles() files: Express.Multer.File[],
+    ) {
+        return this.propertyService.saveVideos(id, files);
     }
 
     @Roles(AppRole.CLIENT, AppRole.OWNER, AppRole.ADMIN)
