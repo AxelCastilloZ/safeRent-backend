@@ -15,7 +15,7 @@ import { ReviewPropertyDto } from './dto/review-property.dto';
 import { PropertyStatus } from './property-status.enum';
 import { UserService } from '../user/user.service';
 import { AppRole } from '../auth/access';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as fs from 'fs';
 import type { PropertyPriceContext } from './property-pricing.service';
@@ -297,6 +297,7 @@ export class PropertyService {
      * Acción del administrador: aprueba, pide cambios o rechaza una propiedad enviada a revisión.
      */
     async review(id: number, dto: ReviewPropertyDto) {
+        if (dto.status === PropertyStatus.INACTIVE) return this.inactivate(id, dto);
         const property = await this.findOne(id);
 
         if (property.status === PropertyStatus.DRAFT) {
@@ -341,9 +342,33 @@ export class PropertyService {
     }
 
     async remove(id: number) {
-        const property = await this.findOne(id);
-        property.status = PropertyStatus.INACTIVE;
-        return await this.propertyRepo.save(property);
+        return this.inactivate(id);
+    }
+
+    private async inactivate(id: number, review?: ReviewPropertyDto) {
+        return this.propertyRepo.manager.transaction(async (manager) => {
+            const properties = manager.getRepository(Property);
+            // Usa el mismo bloqueo que las reservas para serializar ambas acciones.
+            const locked = await properties.createQueryBuilder('property')
+                .where('property.id = :id', { id })
+                .setLock('pessimistic_write').getOne();
+            if (!locked) {
+                throw new NotFoundException({ code: 'API_PROPERTY_WITH_ID_NOT_FOUND', message: `Property with Id ${id} not found`, params: { v0: id } });
+            }
+            if (locked.reservedTenantId != null) {
+                throw new ConflictException({ code: 'API_NO_SE_PUEDE_INACTIVAR_UNA_PROPIEDAD_RESERVADA', message: 'No se puede inactivar una propiedad mientras esté reservada.', params: {} });
+            }
+            if (review && locked.status === PropertyStatus.DRAFT) {
+                throw new BadRequestException({ code: 'API_LA_PROPIEDAD_TODAVIA_NO_FUE_ENVIADA_A_REVISION', message: 'La propiedad todavía no fue enviada a revisión.', params: {} });
+            }
+            const property = (await properties.findOne({ where: { id }, relations: { files: true, iconDescriptions: true } }))!;
+            property.status = PropertyStatus.INACTIVE;
+            if (review) {
+                property.reviewNote = review.note;
+                property.reviewedAt = new Date();
+            }
+            return properties.save(property);
+        });
     }
 
     async findActive(query: FindPropertiesDto = {}, pricing?: PropertyPriceContext) {
